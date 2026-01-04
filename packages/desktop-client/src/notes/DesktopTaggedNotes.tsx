@@ -7,6 +7,7 @@ import { useTagCSS } from '@desktop-client/hooks/useTagCSS';
 
 type DesktopTaggedNotesProps = {
   content: string;
+  comment?: string;
   onPress?: (content: string) => void;
   tag: string;
   separator: string;
@@ -14,6 +15,7 @@ type DesktopTaggedNotesProps = {
 
 export function DesktopTaggedNotes({
   content,
+  comment,
   onPress,
   tag,
   separator,
@@ -24,6 +26,7 @@ export function DesktopTaggedNotes({
       <Button
         variant="bare"
         className={getTagCSS(tag)}
+        title={comment}
         onPress={() => {
           onPress?.(content);
         }}
