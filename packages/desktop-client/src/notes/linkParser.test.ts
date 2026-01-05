@@ -15,7 +15,7 @@ describe('linkParser', () => {
         });
         // The period should remain as a text segment
         const lastSegment = result[result.length - 1];
-        expect(lastSegment).toEqual({ type: 'text', content: '.' });
+        expect(lastSegment).toEqual({type: 'text', content: '.'});
       });
 
       it('should strip trailing comma from https URL', () => {
@@ -42,7 +42,7 @@ describe('linkParser', () => {
         });
         // The exclamation mark should remain as a text segment
         const lastSegment = result[result.length - 1];
-        expect(lastSegment).toEqual({ type: 'text', content: '!' });
+        expect(lastSegment).toEqual({type: 'text', content: '!'});
       });
 
       it('should strip multiple trailing punctuation characters', () => {
@@ -105,7 +105,66 @@ describe('linkParser', () => {
         });
         // The closing paren should remain as a text segment
         const lastSegment = result[result.length - 1];
-        expect(lastSegment).toEqual({ type: 'text', content: ')' });
+        expect(lastSegment).toEqual({type: 'text', content: ')'});
+      });
+    });
+    describe('raw file paths and tags handling', () => {
+      it('should handle file path with # in it', () => {
+        const result = parseNotes('check D:/my/path/file_##.pdf');
+        const linkSegment = result.find(s => s.type === 'link');
+        expect(linkSegment).toEqual({
+          type: 'link',
+          content: 'D:/my/path/file_##.pdf',
+          displayText: 'D:/my/path/file_##.pdf',
+          url: 'D:/my/path/file_##.pdf',
+          isFilePath: true
+        })
+      });
+
+      it('should find file paths on notes edges or inbetween spaces', () => {
+        const result = parseNotes('D:/my/path/file_1.pdf D:/my/path/file_2.pdf D:/my/path/file_3.pdf');
+        const linkSegment = result.filter(s => s.type === 'link');
+        expect(linkSegment?.length).toEqual(3);
+      });
+
+      it('should find windows file paths with forward or backslashes', () => {
+        const result = parseNotes('D:\\my\\path\\file_1.pdf D:\\my\\path\\file_2.pdf D:\\my\\path\\file_3.pdf');
+        const linkSegment = result.filter(s => s.type === 'link');
+        expect(linkSegment?.length).toEqual(3);
+      });
+
+      it('should not create tag with ##', () => {
+        const result = parseNotes('#tag ##notatag');
+        const linkSegment = result.filter(s => s.type === 'tag');
+        expect(linkSegment?.length).toEqual(1);
+      });
+
+      it('should not create tag with #()', () => {
+        const result = parseNotes('#tag #()notatag');
+        const linkSegment = result.filter(s => s.type === 'tag');
+        expect(linkSegment?.length).toEqual(1);
+      });
+
+      it('extracts comment from #tag(comment here)', () => {
+        const result = parseNotes('#tag(comment here)');
+        const linkSegment = result.find(s => s.type === 'tag');
+        expect(linkSegment?.comment).toEqual(
+          "comment here"
+        );
+      });
+
+      it('extracts comment from #tag( comment here ) with spaces in between parenthesis', () => {
+        const result = parseNotes('#tag( comment here )');
+        const linkSegment = result.find(s => s.type === 'tag');
+        expect(linkSegment?.comment).toEqual(
+          " comment here "
+        );
+      });
+
+      it('should not create tag inside of another tag comment', () => {
+        const result = parseNotes('#tag(comment with #another_tag)');
+        const linkSegment = result.filter(s => s.type === 'tag');
+        expect(linkSegment?.length).toEqual(1);
       });
     });
   });

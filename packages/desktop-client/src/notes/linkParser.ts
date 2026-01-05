@@ -13,11 +13,11 @@ export type ParsedSegment =
 const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/;
 const FULL_URL_REGEX = /https?:\/\/[^\s]+/;
 const WWW_URL_REGEX = /www\.[^\s]+/;
-const UNIX_PATH_REGEX = /(?<url>(?:^|\/)(?:[^\s])*)/gmi;
-const WINDOWS_PATH_REGEX = /(?<url>(?:\s|^)*[A-Z]:[\\\/][^\s^\n]*)/gmi;
+const UNIX_PATH_REGEX = /(?:^|\s)(?<url>[/\\][^\s]*)/gmi;
+const WINDOWS_PATH_REGEX = /(?:\s|^)(?<url>[A-Z]:[/\\][^\s]*)/gmi;
 // Regex patterns for tag detection
-const TAG_REGEX = /#(?<tag>[^\s(#]+)(?:\((?<comment>[^(]+)\))?/gmi;
-const TAG_OR_PATH_REGEX = RegExp(`${UNIX_PATH_REGEX.source}|${WINDOWS_PATH_REGEX.source}|${TAG_REGEX.source}`, "gmi");
+const TAG_REGEX = /(?<!#)#(?<tag>[^\s(#]+)(?:\((?<comment>[^(]+)\))?/gmi;
+const TAG_OR_PATH_REGEX = RegExp(`(?:${UNIX_PATH_REGEX.source})|(?:${WINDOWS_PATH_REGEX.source})|(?:${TAG_REGEX.source})`, "gmi");
 
 
 // Common trailing punctuation that should not be part of URLs
@@ -198,7 +198,7 @@ function parseTextWithTags(text: string): ParsedSegment[] {
     lastIndex = match.index + match[0].length;
   }
   //add any remaining strings raw
-  if(lastIndex > text.length)
+  if(lastIndex < text.length)
   {
     segments.push({type: 'text', content:text.slice(lastIndex)})
   }
