@@ -24,34 +24,37 @@ export function DesktopTaggedNotes({
                                      separator,
                                    }: DesktopTaggedNotesProps) {
   const getTagCSS = useTagCSS();
+  const button = (
+    <Button
+      variant="bare"
+      className={getTagCSS(tag)}
+      onPress={() => {
+        onPress?.(content);
+      }}
+    >
+      {content}
+    </Button>
+  );
   return (
     <View style={{display: 'inline'}}>
-      <Button
-        variant="bare"
-        className={getTagCSS(tag)}
-        onPress={() => {
-          onPress?.(content);
-        }}
-      >
-        {comment ? (
-          <Tooltip
-            content={
-              <View style={{padding: 10}}>
-                <Text style={{fontWeight: 'normal'}}>
-                  {comment}
-                </Text>
-              </View>
-            }
-            style={{...styles.tooltip, borderRadius: '0px 5px 5px 0px'}}
-            placement="bottom"
-            triggerProps={{delay: 100}}
-          >
-            {content}
-          </Tooltip>
-        ) : (
-          content
-        )}
-      </Button>
+      {comment ? (
+        <Tooltip
+          content={
+            <View style={{padding: 10}}>
+              <Text style={{fontWeight: 'normal'}}>
+                {comment}
+              </Text>
+            </View>
+          }
+          style={{...styles.tooltip, borderRadius: '0px 5px 5px 0px'}}
+          placement="bottom"
+          triggerProps={{delay: 10, closeDelay: 10}}
+        >
+          {button}
+        </Tooltip>
+      ) : (
+        button
+      )}
       {separator}
     </View>
   );

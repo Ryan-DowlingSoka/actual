@@ -599,7 +599,7 @@ export function conditionsToAQL(
 
       case 'hasTags':
         const tagValues = [];
-        for (const [_, tag] of value.matchAll(/(?<!#)(#[^#\s]+)/g)) {
+        for (const [_, tag] of value.matchAll(/(?<!#)(#[^#\s(]+)/g)) {
           if (!tagValues.find(t => t.tag === tag)) {
             tagValues.push(tag);
           }
