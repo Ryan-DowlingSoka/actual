@@ -35,7 +35,7 @@ export function ResetCache() {
           <strong>Reset budget cache</strong> will clear all cached values for
           the budget and recalculate the entire budget. All values in the budget
           are cached for performance reasons, and if there is a bug in the cache
-          you won’t see correct values. There is no danger in resetting the
+          you won't see correct values. There is no danger in resetting the
           cache. Hopefully you never have to do this.
         </Trans>
       </Text>
@@ -96,17 +96,19 @@ export function ForceReload() {
   async function onForceReload() {
     setReloading(true);
     try {
-      if (isElectron()) {
-        window.location.reload();
-      } else {
-        if (window.Actual?.applyAppUpdate) {
-          await window.Actual.applyAppUpdate();
-        } else {
-          window.location.reload();
+      if (!isElectron()) {
+        const registration =
+          await window.navigator.serviceWorker.getRegistration('/');
+        if (registration) {
+          await registration.update();
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
         }
       }
-    } catch (error) {
-      // If reload fails, fall back to location.reload()
+    } catch {
+      // Do nothing
+    } finally {
       window.location.reload();
     }
   }

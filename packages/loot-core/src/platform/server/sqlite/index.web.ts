@@ -1,5 +1,6 @@
 // @ts-strict-ignore
 import initSqlJS, { type Database } from '@jlongster/sql.js';
+import { logger } from '../log';
 
 import { normalise } from './normalise';
 import { unicodeLike } from './unicodeLike';
@@ -87,17 +88,12 @@ export function runQuery(
       }
       return rows;
     } catch (e) {
-      console.log(sql);
+      logger.log(sql);
       throw e;
     }
   } else {
-    try {
-      stmt.run(params);
-      return { changes: db.getRowsModified() };
-    } catch (e) {
-      // console.log(sql);
-      throw e;
-    }
+    stmt.run(params);
+    return { changes: db.getRowsModified() };
   }
 }
 

@@ -2,7 +2,10 @@ import React from 'react';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 
+import { DesktopLinkedNotes } from './DesktopLinkedNotes';
 import { DesktopTaggedNotes } from './DesktopTaggedNotes';
+import { parseNotes } from './linkParser';
+import { MobileLinkedNotes } from './MobileLinkedNotes';
 import { MobileTaggedNotes } from './MobileTaggedNotes';
 
 type NotesTagFormatterProps = {
@@ -16,50 +19,73 @@ export function NotesTagFormatter({
 }: NotesTagFormatterProps) {
   const { isNarrowWidth } = useResponsive();
 
-  const words = notes.split(' ');
-  const regex = /#(?<tag>[^\s|\(|\#]+)(?:\((?<comment>[^\(]+)\))?/gm;
-  let lastIndex = 0;
-
-  let results = [];
-  for (const match of notes.matchAll(regex))
-  {
-    //return earlier string raw
-    if(match.index > lastIndex)
-    {
-      results.push(notes.slice(lastIndex, match.index));
-    }
-
-    //add the tag object
-    if (isNarrowWidth) {
-      results.push (
-        <MobileTaggedNotes
-          content={`#${match.groups["tag"]}`}
-          tag={match.groups["tag"]}
-          separator={" "}
-        />
-      );
-    } else {
-      results.push(
-        <DesktopTaggedNotes
-          onPress={onNotesTagClick}
-          content={`#${match.groups["tag"]}`}
-          comment={match.groups["comment"]}
-          tag={match.groups["tag"]}
-          separator={" "}
-        />
-      );
-    }
-
-    //add any remaining strings raw
-    if( lastIndex < notes.length )
-    {
-      results.push(notes.slice(lastIndex))
-    }
-  }
+  const segments = parseNotes(notes);
 
   return (
     <>
-      {results}
+      {segments.map((segment, index) => {
+        const isLast = index === segments.length - 1;
+        const nextSegment = segments[index + 1];
+        // Add separator (space) after segment if next segment doesn't start with whitespace
+        const separator =
+          isLast ||
+          (nextSegment?.type === 'text' && /^\s/.test(nextSegment.content))
+            ? ''
+            : ' ';
+
+        switch (segment.type) {
+          case 'text':
+            return (
+              <React.Fragment key={index}>{segment.content}</React.Fragment>
+            );
+
+          case 'tag':
+            if (isNarrowWidth) {
+              return (
+                <MobileTaggedNotes
+                  key={index}
+                  content={segment.content}
+                  tag={segment.tag}
+                  separator={separator}
+                />
+              );
+            }
+            return (
+              <DesktopTaggedNotes
+                key={index}
+                onPress={onNotesTagClick}
+                content={segment.content}
+                tag={segment.tag}
+                separator={separator}
+              />
+            );
+
+          case 'link':
+            if (isNarrowWidth) {
+              return (
+                <MobileLinkedNotes
+                  key={index}
+                  displayText={segment.displayText}
+                  url={segment.url}
+                  separator={separator}
+                  isFilePath={segment.isFilePath}
+                />
+              );
+            }
+            return (
+              <DesktopLinkedNotes
+                key={index}
+                displayText={segment.displayText}
+                url={segment.url}
+                separator={separator}
+                isFilePath={segment.isFilePath}
+              />
+            );
+
+          default:
+            return null;
+        }
+      })}
     </>
   );
 }

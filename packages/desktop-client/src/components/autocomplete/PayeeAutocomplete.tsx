@@ -347,6 +347,8 @@ export function PayeeAutocomplete({
   payees,
   ...props
 }: PayeeAutocompleteProps) {
+  const { t } = useTranslation();
+
   const commonPayees = useCommonPayees();
   const retrievedPayees = usePayees();
   if (!payees) {
@@ -452,7 +454,7 @@ export function PayeeAutocomplete({
   return (
     <Autocomplete
       key={focusTransferPayees ? 'transfers' : 'all'}
-      strict={true}
+      strict
       embedded={embedded}
       value={stripNew(value)}
       suggestions={payeeSuggestions}
@@ -474,6 +476,7 @@ export function PayeeAutocomplete({
           setRawPayee('');
           setPayeeFieldFocused(false);
         },
+        'aria-label': t('Payee'),
         onFocus: () => setPayeeFieldFocused(true),
         onChangeValue: setRawPayee,
       }}
@@ -585,7 +588,7 @@ export function CreatePayeeButton({
           style={{ marginRight: 5, display: 'inline-block' }}
         />
       )}
-      <Trans>Create payee “{{ payeeName }}”</Trans>
+      <Trans>Create payee "{{ payeeName }}"</Trans>
     </View>
   );
 }

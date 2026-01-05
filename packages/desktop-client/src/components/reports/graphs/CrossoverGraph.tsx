@@ -15,6 +15,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 
+import { useRechartsAnimation } from '@desktop-client/components/reports/chart-theme';
 import { Container } from '@desktop-client/components/reports/Container';
 import { useFormat } from '@desktop-client/hooks/useFormat';
 import { usePrivacyMode } from '@desktop-client/hooks/usePrivacyMode';
@@ -26,6 +27,7 @@ type CrossoverGraphProps = {
       x: string;
       investmentIncome: number;
       expenses: number;
+      nestEgg: number;
       isProjection?: boolean;
     }>;
     start: string;
@@ -45,6 +47,7 @@ export function CrossoverGraph({
   const { t } = useTranslation();
   const privacyMode = usePrivacyMode();
   const format = useFormat();
+  const animationProps = useRechartsAnimation({ isAnimationActive: false });
 
   const tickFormatter = (tick: number) => {
     if (privacyMode) {
@@ -58,6 +61,7 @@ export function CrossoverGraph({
       x: string;
       investmentIncome: number | string;
       expenses: number | string;
+      nestEgg: number | string;
       isProjection?: boolean;
     };
   };
@@ -67,7 +71,7 @@ export function CrossoverGraph({
     payload?: PayloadItem[];
   };
 
-  // eslint-disable-next-line react/no-unstable-nested-components
+  // oxlint-disable-next-line react/no-unstable-nested-components
   const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
@@ -115,6 +119,17 @@ export function CrossoverGraph({
                   <Trans>Monthly expenses:</Trans>
                 </div>
                 <div>{format(payload[0].payload.expenses, 'financial')}</div>
+              </View>
+              <View
+                className={css({
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                })}
+              >
+                <div>
+                  <Trans>Life savings:</Trans>
+                </div>
+                <div>{format(payload[0].payload.nestEgg, 'financial')}</div>
               </View>
             </div>
           </div>
@@ -176,7 +191,7 @@ export function CrossoverGraph({
                 dot={false}
                 stroke={theme.reportsBlue}
                 strokeWidth={2}
-                animationDuration={0}
+                {...animationProps}
               />
               <Line
                 type="monotone"
@@ -184,7 +199,7 @@ export function CrossoverGraph({
                 dot={false}
                 stroke={theme.reportsRed}
                 strokeWidth={2}
-                animationDuration={0}
+                {...animationProps}
               />
             </LineChart>
           </div>

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../platform/server/log';
 
 import { type TransactionEntity } from '../types/models';
 
@@ -79,7 +80,7 @@ export function recalculateSplit(trans: TransactionEntity) {
     0,
   );
 
-  const { error, ...rest } = trans;
+  const { error: _error, ...rest } = trans;
   return {
     ...rest,
     error:
@@ -179,7 +180,7 @@ function replaceTransactions(
   if (trans.is_parent || trans.is_child) {
     const parentIndex = findParentIndex(transactions, idx);
     if (parentIndex == null) {
-      console.log('Cannot find parent index');
+      logger.log('Cannot find parent index');
       return {
         data: [],
         diff: { added: [], deleted: [], updated: [] },
@@ -290,7 +291,7 @@ export function deleteTransaction(
       if (trans.id === id) {
         return null;
       } else if (trans.subtransactions?.length === 1) {
-        const { subtransactions, ...rest } = trans;
+        const { subtransactions: _subtransactions, ...rest } = trans;
         return {
           ...rest,
           is_parent: false,
@@ -325,7 +326,7 @@ export function splitTransaction(
       makeChild(trans),
     ];
 
-    const { error, ...rest } = trans;
+    const { error: _error, ...rest } = trans;
 
     return {
       ...rest,

@@ -167,7 +167,7 @@ export function ExperimentalFeatures() {
 
             <FeatureToggle
               flag="crossoverReport"
-              feedbackLink="https://github.com/actualbudget/actual/pull/5554"
+              feedbackLink="https://github.com/actualbudget/actual/issues/6134"
             >
               <Trans>Crossover Report</Trans>
             </FeatureToggle>
@@ -176,7 +176,7 @@ export function ExperimentalFeatures() {
             </FeatureToggle>
             <GlobalFeatureToggle
               prefName="plugins"
-              disableToggle={true}
+              disableToggle
               feedbackLink="https://github.com/actualbudget/actual/issues/5950"
             >
               <Trans>Client-Side plugins (soon)</Trans>
