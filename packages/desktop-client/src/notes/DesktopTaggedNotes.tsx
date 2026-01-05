@@ -44,7 +44,7 @@ export function DesktopTaggedNotes({
             }
             style={{...styles.tooltip, borderRadius: '0px 5px 5px 0px'}}
             placement="bottom"
-            triggerProps={{delay: 750}}
+            triggerProps={{delay: 100}}
           >
             {content}
           </Tooltip>
