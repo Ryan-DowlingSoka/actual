@@ -1,6 +1,6 @@
 export type ParsedSegment =
   | { type: 'text'; content: string }
-  | { type: 'tag'; content: string; tag: string }
+  | { type: 'tag'; content: string; tag: string; comment: string }
   | {
       type: 'link';
       content: string;
@@ -13,8 +13,12 @@ export type ParsedSegment =
 const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)]+)\)/;
 const FULL_URL_REGEX = /https?:\/\/[^\s]+/;
 const WWW_URL_REGEX = /www\.[^\s]+/;
-const UNIX_PATH_REGEX = /^\/(?:[^\s/]+\/)*[^\s/]+$/;
-const WINDOWS_PATH_REGEX = /^[A-Z]:\\(?:[^\s\\]+\\)*[^\s\\]+$/i;
+const UNIX_PATH_REGEX = /(?<url>(?:^|\/)(?:[^\s])*)/gmi;
+const WINDOWS_PATH_REGEX = /(?<url>(?:\s|^)*[A-Z]:[\\\/][^\s^\n]*)/gmi;
+// Regex patterns for tag detection
+const TAG_REGEX = /#(?<tag>[^\s(#]+)(?:\((?<comment>[^(]+)\))?/gmi;
+const TAG_OR_PATH_REGEX = RegExp(`${UNIX_PATH_REGEX.source}|${WINDOWS_PATH_REGEX.source}|${TAG_REGEX.source}`, "gmi");
+
 
 // Common trailing punctuation that should not be part of URLs
 const TRAILING_PUNCTUATION_REGEX = /[.,;:!?)\]"']+$/;
@@ -55,47 +59,6 @@ export function normalizeUrl(rawUrl: string): string {
   }
 
   return rawUrl;
-}
-
-/**
- * Parses a single word for hashtags (existing logic from NotesTagFormatter)
- * Returns segments for tags found in the word
- */
-function parseTagsInWord(word: string): ParsedSegment[] {
-  const segments: ParsedSegment[] = [];
-
-  if (!word.includes('#') || word.length <= 1) {
-    return [{ type: 'text', content: word }];
-  }
-
-  let lastEmptyTag = -1;
-  const parts = word.split('#');
-
-  parts.forEach((tag, ti) => {
-    if (ti === 0) {
-      if (tag) {
-        segments.push({ type: 'text', content: tag });
-      }
-      return;
-    }
-
-    if (!tag) {
-      lastEmptyTag = ti;
-      segments.push({ type: 'text', content: '#' });
-      return;
-    }
-
-    if (lastEmptyTag === ti - 1) {
-      segments.push({ type: 'text', content: `${tag}` });
-      return;
-    }
-    lastEmptyTag = -1;
-
-    const validTag = `#${tag}`;
-    segments.push({ type: 'tag', content: validTag, tag });
-  });
-
-  return segments;
 }
 
 /**
@@ -202,37 +165,42 @@ export function parseNotes(notes: string): ParsedSegment[] {
  */
 function parseTextWithTags(text: string): ParsedSegment[] {
   const segments: ParsedSegment[] = [];
-  const words = text.split(/(\s+)/); // Split but keep whitespace
 
-  for (const word of words) {
-    // Check if it's whitespace
-    if (/^\s+$/.test(word)) {
-      segments.push({ type: 'text', content: word });
-      continue;
+  let lastIndex = 0;
+  let results = [];
+  for (const match of text.matchAll(TAG_OR_PATH_REGEX))
+  {
+    //return earlier string raw
+    if(match.index > lastIndex)
+    {
+      segments.push({type: 'text', content:text.slice(lastIndex, match.index)})
     }
-
-    // Check if it's a file path
-    if (UNIX_PATH_REGEX.test(word) || WINDOWS_PATH_REGEX.test(word)) {
+    const url = match.groups?.url;
+    if(url)
+    {
       segments.push({
         type: 'link',
-        content: word,
-        displayText: word,
-        url: word,
+        content: url,
+        displayText: url,
+        url: url,
         isFilePath: true,
       });
-      continue;
     }
 
-    // Check for hashtags
-    if (word.includes('#') && word.length > 1) {
-      segments.push(...parseTagsInWord(word));
-      continue;
-    }
+    const tag = match.groups?.tag;
+    const comment = match.groups?.comment;
 
-    // Plain text
-    if (word) {
-      segments.push({ type: 'text', content: word });
+    if(tag)
+    {
+      //add the tag object
+      segments.push({type:"tag", tag:tag, comment: comment ? comment : "", content:`#${tag}`});
     }
+    lastIndex = match.index + match[0].length;
+  }
+  //add any remaining strings raw
+  if(lastIndex > text.length)
+  {
+    segments.push({type: 'text', content:text.slice(lastIndex)})
   }
 
   return segments;

@@ -55,6 +55,7 @@ export function NotesTagFormatter({
                 key={index}
                 onPress={onNotesTagClick}
                 content={segment.content}
+                comment={segment.comment}
                 tag={segment.tag}
                 separator={separator}
               />
