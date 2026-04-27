@@ -549,7 +549,7 @@ export async function reconcileTransactions(
         category: existing.category || trans.category || null,
         imported_payee: trans.imported_payee || null,
         notes: existing.notes || trans.notes || null,
-        cleared: existing.cleared || trans.cleared || false,
+        cleared: existing.cleared,
         raw_synced_data:
           existing.raw_synced_data ?? trans.raw_synced_data ?? null,
       };
@@ -618,7 +618,7 @@ export async function reconcileTransactions(
         ...newTrans,
         id: crypto.randomUUID(),
         category: trans.category || null,
-        cleared: trans.cleared ?? defaultCleared,
+        cleared: defaultCleared,
       };
 
       if (subtransactions && subtransactions.length > 0) {
@@ -1011,7 +1011,7 @@ async function processBankSyncDownload(
         true,
         useStrictIdChecking,
         false,
-        true,
+        false,
         updateDates,
       );
       return {
@@ -1033,7 +1033,7 @@ async function processBankSyncDownload(
       true,
       useStrictIdChecking,
       false,
-      true,
+      false,
       updateDates,
     );
 
