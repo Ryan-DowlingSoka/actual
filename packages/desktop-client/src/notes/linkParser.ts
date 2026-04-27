@@ -170,10 +170,10 @@ function parseTextWithTags(text: string): ParsedSegment[] {
   let results = [];
   for (const match of text.matchAll(TAG_OR_PATH_REGEX))
   {
-    //return earlier string raw
+    //return earlier string raw but replace ## with # since those are escaped to avoid tags.
     if(match.index > lastIndex)
     {
-      segments.push({type: 'text', content:text.slice(lastIndex, match.index)})
+      segments.push({type: 'text', content:text.slice(lastIndex, match.index).replace("##","#")})
     }
     const url = match.groups?.url;
     if(url)
@@ -200,7 +200,7 @@ function parseTextWithTags(text: string): ParsedSegment[] {
   //add any remaining strings raw
   if(lastIndex < text.length)
   {
-    segments.push({type: 'text', content:text.slice(lastIndex)})
+    segments.push({type: 'text', content:text.slice(lastIndex).replace("##","#")})
   }
 
   return segments;

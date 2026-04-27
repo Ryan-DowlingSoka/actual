@@ -608,7 +608,7 @@ export function conditionsToAQL(
         return {
           $and: tagValues.map(v => {
             const regex = new RegExp(
-              `(?<!#)${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s#]|$)`,
+              `(?<!#)${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\s#]|$|\\()`,
             );
             return apply(field, '$regexp', regex.source);
           }),

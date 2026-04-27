@@ -7,6 +7,7 @@ import {useTagCSS} from '@desktop-client/hooks/useTagCSS';
 import {Text} from "@actual-app/components/text";
 import {Tooltip} from "@actual-app/components/tooltip";
 import {styles} from "@actual-app/components/styles";
+import {SvgCustomNotesPaper} from "@actual-app/components/icons/v2";
 
 type DesktopTaggedNotesProps = {
   content: string;
@@ -24,37 +25,36 @@ export function DesktopTaggedNotes({
                                      separator,
                                    }: DesktopTaggedNotesProps) {
   const getTagCSS = useTagCSS();
-  const button = (
-    <Button
-      variant="bare"
-      className={getTagCSS(tag)}
-      onPress={() => {
-        onPress?.(content);
-      }}
-    >
-      {content}
-    </Button>
-  );
   return (
     <View style={{display: 'inline'}}>
-      {comment ? (
-        <Tooltip
-          content={
-            <View style={{padding: 10}}>
-              <Text style={{fontWeight: 'normal'}}>
-                {comment}
-              </Text>
-            </View>
-          }
-          style={{...styles.tooltip, borderRadius: '0px 5px 5px 0px'}}
-          placement="bottom"
-          triggerProps={{delay: 10, closeDelay: 10}}
-        >
-          {button}
-        </Tooltip>
-      ) : (
-        button
-      )}
+      <Button
+        variant="bare"
+        className={getTagCSS(tag)}
+        onPress={() => {
+          onPress?.(content);
+        }}
+      >
+        {comment ? (
+          <Tooltip
+            content={
+              <View style={{padding: 10}}>
+                <Text style={{fontWeight: 'normal'}}>
+                  {comment}
+                </Text>
+              </View>
+            }
+            style={{...styles.tooltip, borderRadius: '0px 5px 5px 0px'}}
+            placement="bottom"
+            triggerProps={{delay: 10}}
+          >
+            <div style={{display: 'inline'}}>
+              {content} <SvgCustomNotesPaper style={{height:11, position: "relative", top:"1px" }} />
+            </div>
+          </Tooltip>
+        ) : (
+          content
+        )}
+      </Button>
       {separator}
     </View>
   );
