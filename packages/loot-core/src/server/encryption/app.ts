@@ -1,13 +1,11 @@
-import { v4 as uuidv4 } from 'uuid';
-
-import * as asyncStorage from '../../platform/server/asyncStorage';
-import { logger } from '../../platform/server/log';
-import { type Budget } from '../../types/budget';
-import { createApp } from '../app';
-import { post } from '../post';
-import * as prefs from '../prefs';
-import { getServer } from '../server-config';
-import { makeTestMessage, resetSync } from '../sync';
+import * as asyncStorage from '#platform/server/asyncStorage';
+import { logger } from '#platform/server/log';
+import { createApp } from '#server/app';
+import { post } from '#server/post';
+import * as prefs from '#server/prefs';
+import { getServer } from '#server/server-config';
+import { makeTestMessage, resetSync } from '#server/sync';
+import type { Budget } from '#types/budget';
 
 import * as encryption from '.';
 
@@ -30,7 +28,7 @@ async function keyMake({ password }: { password: string }) {
   }
 
   const salt = encryption.randomBytes(32).toString('base64');
-  const id = uuidv4();
+  const id = crypto.randomUUID();
   const key = await encryption.createKey({ id, password, salt });
 
   // Load the key
@@ -105,7 +103,7 @@ async function keyTest({
   } = JSON.parse(originalTest);
 
   const key = await encryption.createKey({ id, password, salt });
-  encryption.loadKey(key);
+  await encryption.loadKey(key);
 
   try {
     await encryption.decrypt(Buffer.from(test.value, 'base64'), test.meta);

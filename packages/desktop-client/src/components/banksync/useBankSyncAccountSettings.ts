@@ -2,20 +2,20 @@ import { useState } from 'react';
 
 import {
   defaultMappings,
-  type Mappings,
   mappingsFromString,
   mappingsToString,
-} from 'loot-core/server/util/custom-sync-mapping';
-import { q } from 'loot-core/shared/query';
+} from '@actual-app/core/server/util/custom-sync-mapping';
+import type { Mappings } from '@actual-app/core/server/util/custom-sync-mapping';
+import { q } from '@actual-app/core/shared/query';
 
-import {
-  type TransactionDirection,
-  type MappableFieldWithExample,
-  getFields,
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { useTransactions } from '#hooks/useTransactions';
+
+import { getFields } from './EditSyncAccount';
+import type {
+  MappableFieldWithExample,
+  TransactionDirection,
 } from './EditSyncAccount';
-
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { useTransactions } from '@desktop-client/hooks/useTransactions';
 
 export function useBankSyncAccountSettings(accountId: string) {
   const [savedMappings = mappingsToString(defaultMappings), setSavedMappings] =
@@ -31,6 +31,10 @@ export function useBankSyncAccountSettings(accountId: string) {
   );
   const [savedImportTransactions = true, setSavedImportTransactions] =
     useSyncedPref(`sync-import-transactions-${accountId}`);
+
+  const [savedUpdateDates = false, setSavedUpdateDates] = useSyncedPref(
+    `sync-update-dates-${accountId}`,
+  );
 
   const [transactionDirection, setTransactionDirection] =
     useState<TransactionDirection>('payment');
@@ -48,6 +52,9 @@ export function useBankSyncAccountSettings(accountId: string) {
   );
   const [importTransactions, setImportTransactions] = useState(
     String(savedImportTransactions) === 'true',
+  );
+  const [updateDates, setUpdateDates] = useState(
+    String(savedUpdateDates) === 'true',
   );
 
   const transactionQuery = q('transactions')
@@ -84,6 +91,7 @@ export function useBankSyncAccountSettings(accountId: string) {
     setSavedImportNotes(String(importNotes));
     setSavedReimportDeleted(String(reimportDeleted));
     setSavedImportTransactions(String(importTransactions));
+    setSavedUpdateDates(String(updateDates));
   };
 
   const setMapping = (field: string, value: string) => {
@@ -110,6 +118,8 @@ export function useBankSyncAccountSettings(accountId: string) {
     setReimportDeleted,
     importTransactions,
     setImportTransactions,
+    updateDates,
+    setUpdateDates,
     mappings,
     setMapping,
     exampleTransaction,

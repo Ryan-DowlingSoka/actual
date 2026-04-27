@@ -1,18 +1,18 @@
 // @ts-strict-ignore
-import { logger } from '../../platform/server/log';
-import {
-  type RuleActionEntity,
-  type TransactionEntity,
-  type RuleEntity,
-} from '../../types/models';
-import { createApp } from '../app';
-import { RuleError } from '../errors';
-import { mutator } from '../mutators';
-import { batchMessages } from '../sync';
-import * as rules from '../transactions/transaction-rules';
-import { undoable } from '../undo';
+import { logger } from '#platform/server/log';
+import { createApp } from '#server/app';
+import { RuleError } from '#server/errors';
+import { mutator } from '#server/mutators';
+import { batchMessages } from '#server/sync';
+import * as rules from '#server/transactions/transaction-rules';
+import { undoable } from '#server/undo';
+import type {
+  RuleActionEntity,
+  RuleEntity,
+  TransactionEntity,
+} from '#types/models';
 
-import { Condition, Action, rankRules } from '.';
+import { Action, Condition, rankRules } from '.';
 
 function validateRule(rule: Partial<RuleEntity>) {
   // Returns an array of errors, the array is the same link as the

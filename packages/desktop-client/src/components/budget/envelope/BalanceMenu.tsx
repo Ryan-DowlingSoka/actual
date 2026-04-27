@@ -1,11 +1,12 @@
-import React, { type ComponentPropsWithoutRef } from 'react';
+import React from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Menu } from '@actual-app/components/menu';
 
-import { useEnvelopeSheetValue } from './EnvelopeBudgetComponents';
+import { envelopeBudget } from '#spreadsheet/bindings';
 
-import { envelopeBudget } from '@desktop-client/spreadsheet/bindings';
+import { useEnvelopeSheetValue } from './EnvelopeBudgetComponents';
 
 type BalanceMenuProps = Omit<
   ComponentPropsWithoutRef<typeof Menu>,

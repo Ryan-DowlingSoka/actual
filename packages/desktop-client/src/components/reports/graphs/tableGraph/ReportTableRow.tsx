@@ -1,27 +1,22 @@
-import React, {
-  memo,
-  type RefObject,
-  type UIEventHandler,
-  type CSSProperties,
-} from 'react';
+import React, { memo } from 'react';
+import type { CSSProperties, RefObject, UIEventHandler } from 'react';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
-import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type {
+  balanceTypeOpType,
+  GroupedEntity,
+  RuleConditionEntity,
+} from '@actual-app/core/types/models';
 
-import {
-  type balanceTypeOpType,
-  type GroupedEntity,
-  type RuleConditionEntity,
-} from 'loot-core/types/models';
-
-import { showActivity } from '@desktop-client/components/reports/graphs/showActivity';
-import { Row, Cell } from '@desktop-client/components/table';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { FinancialText } from '#components/FinancialText';
+import { showActivity } from '#components/reports/graphs/showActivity';
+import { Cell, Row } from '#components/table';
+import { useAccounts } from '#hooks/useAccounts';
+import { useCategories } from '#hooks/useCategories';
+import { useFormat } from '#hooks/useFormat';
+import { useNavigate } from '#hooks/useNavigate';
 
 type ReportTableRowProps = {
   item: GroupedEntity;
@@ -46,8 +41,8 @@ type ReportTableRowProps = {
 };
 
 const getAmountColor = (amount: number) => {
-  if (amount === 0) return undefined;
-  return amount > 0 ? theme.noticeText : theme.errorText;
+  if (amount === 0) return theme.reportsNumberNeutral;
+  return amount > 0 ? theme.reportsNumberPositive : theme.reportsNumberNegative;
 };
 
 export const ReportTableRow = memo(
@@ -78,8 +73,8 @@ export const ReportTableRow = memo(
 
     const navigate = useNavigate();
     const { isNarrowWidth } = useResponsive();
-    const categories = useCategories();
-    const accounts = useAccounts();
+    const { data: categories = { grouped: [], list: [] } } = useCategories();
+    const { data: accounts = [] } = useAccounts();
 
     const pointer =
       !isNarrowWidth &&
@@ -148,7 +143,7 @@ export const ReportTableRow = memo(
                       }),
                     }}
                     unexposedContent={({ value }) => (
-                      <Text
+                      <FinancialText
                         style={{
                           ...hoverUnderline,
                           textAlign: 'right',
@@ -156,7 +151,7 @@ export const ReportTableRow = memo(
                         }}
                       >
                         {value}
-                      </Text>
+                      </FinancialText>
                     )}
                     valueStyle={compactStyle}
                     value={format(intervalItem[balanceTypeOp], 'financial')}
@@ -191,7 +186,7 @@ export const ReportTableRow = memo(
                   />
                 );
               })
-            : balanceTypeOp === 'totalTotals' && (
+            : ['totalTotals', 'totalBudgeted'].includes(balanceTypeOp) && (
                 <>
                   <Cell
                     value={format(item.totalAssets, 'financial')}
@@ -211,7 +206,7 @@ export const ReportTableRow = memo(
                       }),
                     }}
                     unexposedContent={({ value }) => (
-                      <Text
+                      <FinancialText
                         style={{
                           ...hoverUnderline,
                           textAlign: 'right',
@@ -219,7 +214,7 @@ export const ReportTableRow = memo(
                         }}
                       >
                         {value}
-                      </Text>
+                      </FinancialText>
                     )}
                     valueStyle={compactStyle}
                     onClick={() =>
@@ -261,7 +256,7 @@ export const ReportTableRow = memo(
                       }),
                     }}
                     unexposedContent={({ value }) => (
-                      <Text
+                      <FinancialText
                         style={{
                           ...hoverUnderline,
                           textAlign: 'right',
@@ -269,7 +264,7 @@ export const ReportTableRow = memo(
                         }}
                       >
                         {value}
-                      </Text>
+                      </FinancialText>
                     )}
                     valueStyle={compactStyle}
                     onClick={() =>
@@ -310,7 +305,7 @@ export const ReportTableRow = memo(
               ...(colorized && { color: getAmountColor(item[balanceTypeOp]) }),
             }}
             unexposedContent={({ value }) => (
-              <Text
+              <FinancialText
                 style={{
                   ...hoverUnderline,
                   textAlign: 'right',
@@ -318,7 +313,7 @@ export const ReportTableRow = memo(
                 }}
               >
                 {value}
-              </Text>
+              </FinancialText>
             )}
             valueStyle={compactStyle}
             onClick={() =>
@@ -358,6 +353,11 @@ export const ReportTableRow = memo(
               backgroundColor: style?.backgroundColor,
               ...(colorized && { color: getAmountColor(average) }),
             }}
+            unexposedContent={({ value }) => (
+              <FinancialText style={{ textAlign: 'right', flexGrow: 1 }}>
+                {value}
+              </FinancialText>
+            )}
             valueStyle={compactStyle}
             width="flex"
             privacyFilter

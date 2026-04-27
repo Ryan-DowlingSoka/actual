@@ -7,24 +7,17 @@ import { SvgAdd } from '@actual-app/components/icons/v0';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import { q } from '@actual-app/core/shared/query';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { q } from 'loot-core/shared/query';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { Search } from '#components/common/Search';
+import { useSchedules } from '#hooks/useSchedules';
+import { pushModal } from '#modals/modalsSlice';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 import { ROW_HEIGHT, SchedulesTable } from './SchedulesTable';
-
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { Search } from '@desktop-client/components/common/Search';
-import { useSchedules } from '@desktop-client/hooks/useSchedules';
-import {
-  type Modal as ModalType,
-  pushModal,
-} from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
 
 type ScheduleLinkProps = Extract<
   ModalType,
@@ -85,11 +78,11 @@ export function ScheduleLink({
         },
       }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={t('Link schedule')}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View
             style={{
@@ -125,8 +118,8 @@ export function ScheduleLink({
                 variant="primary"
                 style={{ marginLeft: 15, padding: '4px 10px' }}
                 onPress={() => {
-                  close();
-                  onCreate();
+                  state.close();
+                  void onCreate();
                 }}
               >
                 <SvgAdd style={{ width: '20', padding: '3' }} />
@@ -149,10 +142,9 @@ export function ScheduleLink({
               allowCompleted={false}
               filter={filter}
               minimal
-              onAction={() => {}}
               onSelect={id => {
-                onSelect(id);
-                close();
+                void onSelect(id);
+                state.close();
               }}
               schedules={schedules}
               statuses={statuses}

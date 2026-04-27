@@ -1,33 +1,28 @@
 // @ts-strict-ignore
 import React, { useMemo } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SpaceBetween } from '@actual-app/components/space-between';
+import { send, sendCatch } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import { q } from '@actual-app/core/shared/query';
+import type {
+  RecurConfig,
+  ScheduleEntity,
+} from '@actual-app/core/types/models';
 
-import { send, sendCatch } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-import { q } from 'loot-core/shared/query';
-import { type ScheduleEntity, type RecurConfig } from 'loot-core/types/models';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { usePayeesById } from '#hooks/usePayees';
+import { useScheduleEdit } from '#hooks/useScheduleEdit';
+import { useSelected } from '#hooks/useSelected';
+import { pushModal } from '#modals/modalsSlice';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { aqlQuery } from '#queries/aqlQuery';
+import { useDispatch } from '#redux';
 
 import { updateScheduleConditions } from './schedule-edit-utils';
 import { ScheduleEditForm } from './ScheduleEditForm';
-
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { usePayees } from '@desktop-client/hooks/usePayees';
-import { useScheduleEdit } from '@desktop-client/hooks/useScheduleEdit';
-import { useSelected } from '@desktop-client/hooks/useSelected';
-import {
-  type Modal as ModalType,
-  pushModal,
-} from '@desktop-client/modals/modalsSlice';
-import { getPayeesById } from '@desktop-client/payees/payeesSlice';
-import { aqlQuery } from '@desktop-client/queries/aqlQuery';
-import { useDispatch } from '@desktop-client/redux';
 
 type ScheduleEditModalProps = Extract<
   ModalType,
@@ -39,7 +34,7 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
 
   const adding = id == null;
   const fromTrans = transaction != null;
-  const payees = getPayeesById(usePayees());
+  const { data: payees } = usePayeesById();
   const globalDispatch = useDispatch();
 
   // Create initial schedule if adding from transaction
@@ -132,6 +127,7 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
         schedule: {
           id: state.schedule.id,
           posts_transaction: state.fields.posts_transaction,
+          custom_upcoming_length: state.fields.custom_upcoming_length,
           name: state.fields.name,
         },
         conditions,
@@ -219,7 +215,7 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
       : false;
   return (
     <Modal name="schedule-edit">
-      {({ state: { close } }) => (
+      {({ state: modalState }) => (
         <>
           <ModalHeader
             title={
@@ -227,7 +223,9 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
                 ? t(`Schedule: {{name}}`, { name: payee.name })
                 : t('Schedule')
             }
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={
+              <ModalCloseButton onPress={() => modalState.close()} />
+            }
           />
           <ScheduleEditForm
             fields={state.fields}
@@ -254,10 +252,13 @@ export function ScheduleEditModal({ id, transaction }: ScheduleEditModalProps) {
               alignItems: 'center',
             }}
           >
-            <Button onPress={close}>
+            <Button onPress={() => modalState.close()}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button variant="primary" onPress={() => onSave(close)}>
+            <Button
+              variant="primary"
+              onPress={() => onSave(() => modalState.close())}
+            >
               {adding ? t('Add') : t('Save')}
             </Button>
           </SpaceBetween>

@@ -1,12 +1,15 @@
 import { useCallback, useMemo } from 'react';
 
-import { groupById, type IntegerAmount } from 'loot-core/shared/util';
-import {
-  type ScheduleEntity,
-  type AccountEntity,
-  type PayeeEntity,
-  type TransactionEntity,
-} from 'loot-core/types/models';
+import { groupById } from '@actual-app/core/shared/util';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
+import type {
+  AccountEntity,
+  PayeeEntity,
+  ScheduleEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
+
+import * as bindings from '#spreadsheet/bindings';
 
 import { useAccounts } from './useAccounts';
 import { usePayees } from './usePayees';
@@ -14,8 +17,6 @@ import { usePreviewTransactions } from './usePreviewTransactions';
 import { useSheetValue } from './useSheetValue';
 import { useSyncedPref } from './useSyncedPref';
 import { calculateRunningBalancesBottomUp } from './useTransactions';
-
-import * as bindings from '@desktop-client/spreadsheet/bindings';
 
 type UseAccountPreviewTransactionsProps = {
   accountId?: AccountEntity['id'] | undefined;
@@ -33,19 +34,19 @@ type UseAccountPreviewTransactionsResult = ReturnType<
 export function useAccountPreviewTransactions({
   accountId,
 }: UseAccountPreviewTransactionsProps): UseAccountPreviewTransactionsResult {
-  const accounts = useAccounts();
+  const { data: accounts = [] } = useAccounts();
   const accountsById = useMemo(() => groupById(accounts), [accounts]);
-  const payees = usePayees();
+  const { data: payees = [] } = usePayees();
   const payeesById = useMemo(() => groupById(payees), [payees]);
 
   const getPayeeByTransferAccount = useCallback(
-    (transferAccountId?: AccountEntity['id']) =>
+    (transferAccountId?: AccountEntity['id'] | null) =>
       payees.find(p => p.transfer_acct === transferAccountId) || null,
     [payees],
   );
 
   const getTransferAccountByPayee = useCallback(
-    (payeeId?: PayeeEntity['id']) => {
+    (payeeId?: PayeeEntity['id'] | null) => {
       if (!payeeId) {
         return null;
       }
@@ -144,10 +145,10 @@ type InverseBasedOnAccountProps = {
   startingBalance: IntegerAmount;
   runningBalances: Map<TransactionEntity['id'], IntegerAmount>;
   getPayeeByTransferAccount: (
-    transferAccountId?: AccountEntity['id'],
+    transferAccountId?: AccountEntity['id'] | null,
   ) => PayeeEntity | null;
   getTransferAccountByPayee: (
-    payeeId?: PayeeEntity['id'],
+    payeeId?: PayeeEntity['id'] | null,
   ) => AccountEntity | null;
 };
 

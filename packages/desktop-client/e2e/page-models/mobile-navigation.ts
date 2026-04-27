@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { MobileAccountPage } from './mobile-account-page';
 import { MobileAccountsPage } from './mobile-accounts-page';
@@ -90,6 +90,10 @@ export class MobileNavigation {
         y: boundingBox.height / NAVBAR_ROWS,
       },
     });
+
+    // Wait for the react-spring animation to complete before taking screenshots.
+    // The animation typically takes a few hundred milliseconds to finish.
+    await this.page.waitForTimeout(500);
   }
 
   async hasNavbarState(...states: string[]) {
@@ -127,7 +131,9 @@ export class MobileNavigation {
     }
 
     const link = this.navbar.getByRole('link', { name: pageName });
-    await link.click();
+    // Click via evaluate: the navbar uses react-spring transforms, so
+    // Playwright's viewport-stability check rejects mid-animation clicks.
+    await link.evaluate(el => (el as HTMLElement).click());
 
     await pageInstance.waitFor();
 

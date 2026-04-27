@@ -1,11 +1,11 @@
-import * as asyncStorage from '../../platform/server/asyncStorage';
-import { logger } from '../../platform/server/log';
-import { type OpenIdConfig } from '../../types/models';
-import { createApp } from '../app';
-import * as encryption from '../encryption';
-import { PostError } from '../errors';
-import { get, post } from '../post';
-import { getServer, isValidBaseURL } from '../server-config';
+import * as asyncStorage from '#platform/server/asyncStorage';
+import { logger } from '#platform/server/log';
+import { createApp } from '#server/app';
+import * as encryption from '#server/encryption';
+import { PostError } from '#server/errors';
+import { get, post } from '#server/post';
+import { getServer, isValidBaseURL } from '#server/server-config';
+import type { OpenIdConfig } from '#types/models';
 
 export type AuthHandlers = {
   'get-did-bootstrap': typeof didBootstrap;
@@ -174,6 +174,7 @@ async function getUser() {
         userId = null,
         displayName = null,
         loginMethod = null,
+        prefs: serverPrefs,
       } = {},
     } = JSON.parse(res) || {};
 
@@ -195,6 +196,7 @@ async function getUser() {
       displayName,
       loginMethod,
       tokenExpired,
+      serverPrefs,
     };
   } catch (e) {
     logger.log(e);

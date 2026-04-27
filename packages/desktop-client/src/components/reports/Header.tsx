@@ -1,4 +1,4 @@
-import { type ComponentProps, type ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -6,13 +6,16 @@ import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { Select } from '@actual-app/components/select';
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  RuleConditionEntity,
+  TimeFrame,
+} from '@actual-app/core/types/models';
+import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type RuleConditionEntity,
-  type TimeFrame,
-} from 'loot-core/types/models';
-import { type SyncedPrefs } from 'loot-core/types/prefs';
+import { AppliedFilters } from '#components/filters/AppliedFilters';
+import { FilterButton } from '#components/filters/FiltersMenu';
+import { useLocale } from '#hooks/useLocale';
 
 import { getLiveRange } from './getLiveRange';
 import {
@@ -22,10 +25,6 @@ import {
   validateEnd,
   validateStart,
 } from './reportRanges';
-
-import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
-import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
-import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type HeaderProps = {
   start: TimeFrame['start'];
@@ -43,6 +42,9 @@ type HeaderProps = {
   ) => void;
   children?: ReactNode;
   inlineContent?: ReactNode;
+  // no separate category filter; use main filters instead
+  filterExclude?: string[];
+  filterInclude?: string[];
 } & (
   | {
       filters: RuleConditionEntity[];
@@ -82,10 +84,13 @@ export function Header({
   onConditionsOpChange,
   children,
   inlineContent,
+  filterExclude,
+  filterInclude,
 }: HeaderProps) {
   const locale = useLocale();
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
+
   function convertToMonth(
     start: string,
     end: string,
@@ -149,7 +154,7 @@ export function Header({
                   )
                 }
                 value={start}
-                defaultLabel={monthUtils.format(start, 'MMMM, yyyy', locale)}
+                defaultLabel={monthUtils.format(start, 'MMMM yyyy', locale)}
                 options={allMonths.map(({ name, pretty }) => [name, pretty])}
               />
               <View>{t('to')}</View>
@@ -293,10 +298,12 @@ export function Header({
                 compact={isNarrowWidth}
                 onApply={onApply}
                 hover={false}
+                exclude={filterExclude}
+                include={filterInclude}
               />
             )}
+            {inlineContent}
           </SpaceBetween>
-          <SpaceBetween gap={0}>{inlineContent}</SpaceBetween>
         </View>
 
         {children && (

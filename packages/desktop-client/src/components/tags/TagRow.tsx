@@ -6,24 +6,22 @@ import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
-
-import { type TagEntity } from 'loot-core/types/models';
-
-import { TagEditor } from './TagEditor';
+import type { TagEntity } from '@actual-app/core/types/models';
 
 import {
-  SelectCell,
-  Row,
   Cell,
-  InputCell,
   CellButton,
-} from '@desktop-client/components/table';
-import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useProperFocus } from '@desktop-client/hooks/useProperFocus';
-import { useSelectedDispatch } from '@desktop-client/hooks/useSelected';
-import { useDispatch } from '@desktop-client/redux';
-import { deleteTag, updateTag } from '@desktop-client/tags/tagsSlice';
+  InputCell,
+  Row,
+  SelectCell,
+} from '#components/table';
+import { useContextMenu } from '#hooks/useContextMenu';
+import { useNavigate } from '#hooks/useNavigate';
+import { useProperFocus } from '#hooks/useProperFocus';
+import { useSelectedDispatch } from '#hooks/useSelected';
+import { useDeleteTagMutation, useUpdateTagMutation } from '#tags';
+
+import { TagEditor } from './TagEditor';
 
 type TagRowProps = {
   tag: TagEntity;
@@ -37,7 +35,6 @@ type TagRowProps = {
 export const TagRow = memo(
   ({ tag, hovered, selected, onHover, focusedField, onEdit }: TagRowProps) => {
     const { t } = useTranslation();
-    const dispatch = useDispatch();
     const dispatchSelected = useSelectedDispatch();
     const borderColor = selected ? theme.tableBorderSelected : 'none';
 
@@ -50,9 +47,11 @@ export const TagRow = memo(
     const { setMenuOpen, menuOpen, handleContextMenu, position } =
       useContextMenu();
     const navigate = useNavigate();
+    const { mutate: updateTag } = useUpdateTagMutation();
+    const { mutate: deleteTag } = useDeleteTagMutation();
 
     const onUpdate = (description: string) => {
-      dispatch(updateTag({ ...tag, description }));
+      updateTag({ tag: { ...tag, description } });
     };
 
     const onShowActivity = () => {
@@ -64,7 +63,7 @@ export const TagRow = memo(
           type: 'string',
         },
       ];
-      navigate('/accounts', {
+      void navigate('/accounts', {
         state: {
           goBack: true,
           filterConditions,
@@ -108,10 +107,10 @@ export const TagRow = memo(
             onMenuSelect={name => {
               switch (name) {
                 case 'delete':
-                  dispatch(deleteTag(tag));
+                  deleteTag({ id: tag.id });
                   break;
                 default:
-                  throw new Error(`Unrecognized menu option: ${name}`);
+                  throw new Error(`Unrecognized menu option: ${String(name)}`);
               }
               setMenuOpen(false);
             }}

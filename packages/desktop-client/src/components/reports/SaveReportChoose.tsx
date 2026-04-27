@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { Trans } from 'react-i18next';
 
@@ -7,7 +7,7 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { GenericInput } from '@desktop-client/components/util/GenericInput';
+import { GenericInput } from '#components/util/GenericInput';
 
 type SaveReportChooseProps = {
   onApply: (cond: string) => void;

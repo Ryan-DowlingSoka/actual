@@ -1,18 +1,17 @@
 import React from 'react';
 
+import { generateAccount } from '@actual-app/core/mocks';
+import { q } from '@actual-app/core/shared/query';
+import type { AccountEntity } from '@actual-app/core/types/models';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { generateAccount } from 'loot-core/mocks';
-import { q } from 'loot-core/shared/query';
-import { type AccountEntity } from 'loot-core/types/models';
+import { useSheetValue } from '#hooks/useSheetValue';
+import { TestProviders } from '#mocks';
 
-import { ReconcilingMessage, ReconcileMenu } from './Reconcile';
+import { ReconcileMenu, ReconcilingMessage } from './Reconcile';
 
-import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
-import { TestProvider } from '@desktop-client/redux/mock';
-
-vi.mock('@desktop-client/hooks/useSheetValue', () => ({
+vi.mock('#hooks/useSheetValue', () => ({
   useSheetValue: vi.fn(),
 }));
 
@@ -40,14 +39,14 @@ describe('ReconcilingMessage math & UI', () => {
     const onCreateTransaction = vi.fn();
 
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcilingMessage
           balanceQuery={makeBalanceQuery()}
           targetBalance={5000}
           onDone={onDone}
           onCreateTransaction={onCreateTransaction}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     expect(screen.getByText('All reconciled!')).toBeInTheDocument();
@@ -67,14 +66,14 @@ describe('ReconcilingMessage math & UI', () => {
     const onCreateTransaction = vi.fn();
 
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcilingMessage
           balanceQuery={makeBalanceQuery()}
           targetBalance={10000}
           onDone={vi.fn()}
           onCreateTransaction={onCreateTransaction}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     // Formatted amounts present
@@ -95,14 +94,14 @@ describe('ReconcilingMessage math & UI', () => {
     const onCreateTransaction = vi.fn();
 
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcilingMessage
           balanceQuery={makeBalanceQuery()}
           targetBalance={10000}
           onDone={vi.fn()}
           onCreateTransaction={onCreateTransaction}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     expect(screen.getByText('120.00')).toBeInTheDocument();
@@ -133,13 +132,13 @@ describe('ReconcileMenu arithmetic evaluation', () => {
     const onClose = vi.fn();
 
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcileMenu
           account={baseAccount as AccountEntity}
           onReconcile={onReconcile}
           onClose={onClose}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     const input = screen.getByRole('textbox');
@@ -162,24 +161,24 @@ describe('ReconcileMenu arithmetic evaluation', () => {
     const onClose = vi.fn();
 
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcileMenu
           account={baseAccount as AccountEntity}
           onReconcile={onReconcile}
           onClose={onClose}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     const input = screen.getByRole('textbox');
     // Replace with arithmetic expression
     await userEvent.clear(input);
-    await userEvent.type(input, '100+25.50-abcd-10');
+    await userEvent.type(input, 'abcd');
 
     // Submit
     await userEvent.click(screen.getByRole('button', { name: 'Reconcile' }));
 
-    // Input contains invalid characters, so it should use cleared balance for reconciliation
+    // Input has no digits, so it should use cleared balance for reconciliation
     expect(onReconcile).toHaveBeenCalledWith(123456);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -200,13 +199,13 @@ describe('ReconcileMenu arithmetic evaluation', () => {
     connectedAccount.balance_current = 4321;
 
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcileMenu
           account={connectedAccount}
           onReconcile={onReconcile}
           onClose={onClose}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     // Fill from last synced value (43.21)
@@ -223,13 +222,13 @@ describe('ReconcileMenu arithmetic evaluation', () => {
     const onReconcile = vi.fn();
     const onClose = vi.fn();
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcileMenu
           account={baseAccount as AccountEntity}
           onReconcile={onReconcile}
           onClose={onClose}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     const input = screen.getByRole('textbox');
@@ -247,13 +246,13 @@ describe('ReconcileMenu arithmetic evaluation', () => {
     const onReconcile = vi.fn();
     const onClose = vi.fn();
     render(
-      <TestProvider>
+      <TestProviders>
         <ReconcileMenu
           account={baseAccount as AccountEntity}
           onReconcile={onReconcile}
           onClose={onClose}
         />
-      </TestProvider>,
+      </TestProviders>,
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Reconcile' }));

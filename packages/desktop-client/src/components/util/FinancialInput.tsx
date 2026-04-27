@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef, type FocusEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { FocusEvent } from 'react';
 
-import { Input, type InputProps } from '@actual-app/components/input';
+import { Input } from '@actual-app/components/input';
+import type { InputProps } from '@actual-app/components/input';
+import { styles } from '@actual-app/components/styles';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
 
-import { type IntegerAmount } from 'loot-core/shared/util';
-
-import { useFormat } from '@desktop-client/hooks/useFormat';
+import { useFormat } from '#hooks/useFormat';
 
 type FinancialInputProps = Omit<
   InputProps,
@@ -86,6 +88,7 @@ export function FinancialInput({
       {...restProps}
       ref={setInputRef}
       value={internalValue || ''}
+      style={{ ...restProps.style, ...styles.tnum }}
       onChangeValue={handleChange}
       onFocus={handleFocus}
       onBlur={handleBlur}

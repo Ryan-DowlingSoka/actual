@@ -8,23 +8,16 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import { getUserAccessErrors } from '@actual-app/core/shared/errors';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { getUserAccessErrors } from 'loot-core/shared/errors';
-
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { FormField, FormLabel } from '@desktop-client/components/forms';
-import {
-  type Modal as ModalType,
-  popModal,
-} from '@desktop-client/modals/modalsSlice';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { signOut } from '@desktop-client/users/usersSlice';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { FormField, FormLabel } from '#components/forms';
+import { popModal } from '#modals/modalsSlice';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { signOut } from '#users/usersSlice';
 
 type EditUserAccessProps = Extract<
   ModalType,
@@ -43,20 +36,22 @@ export function EditUserAccess({
   const [availableUsers, setAvailableUsers] = useState<[string, string][]>([]);
 
   useEffect(() => {
-    send('access-get-available-users', defaultUserAccess.fileId).then(data => {
-      if ('error' in data) {
-        setSetError(data.error);
-      } else {
-        setAvailableUsers(
-          data.map(user => [
-            user.userId,
-            user.displayName
-              ? `${user.displayName} (${user.userName})`
-              : user.userName,
-          ]),
-        );
-      }
-    });
+    void send('access-get-available-users', defaultUserAccess.fileId).then(
+      data => {
+        if ('error' in data) {
+          setSetError(data.error);
+        } else {
+          setAvailableUsers(
+            data.map(user => [
+              user.userId,
+              user.displayName
+                ? `${user.displayName} (${user.userName})`
+                : user.userName,
+            ]),
+          );
+        }
+      },
+    );
   }, [defaultUserAccess.fileId]);
 
   async function onSave(close: () => void) {
@@ -82,7 +77,7 @@ export function EditUserAccess({
               button: {
                 title: t('Go to login'),
                 action: () => {
-                  dispatch(signOut());
+                  void dispatch(signOut());
                 },
               },
             },

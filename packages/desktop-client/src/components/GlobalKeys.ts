@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
-import * as Platform from 'loot-core/shared/platform';
+import * as Platform from '@actual-app/core/shared/platform';
 
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { useNavigate } from '#hooks/useNavigate';
 
 export function GlobalKeys() {
   const navigate = useNavigate();
@@ -15,17 +15,17 @@ export function GlobalKeys() {
       if (e.metaKey) {
         switch (e.key) {
           case '1':
-            navigate('/budget');
+            void navigate('/budget');
             break;
           case '2':
-            navigate('/reports');
+            void navigate('/reports');
             break;
           case '3':
-            navigate('/accounts');
+            void navigate('/accounts');
             break;
           case ',':
             if (Platform.OS === 'mac') {
-              navigate('/settings');
+              void navigate('/settings');
             }
             break;
           default:
@@ -36,7 +36,7 @@ export function GlobalKeys() {
     document.addEventListener('keydown', handleKeys);
 
     return () => document.removeEventListener('keydown', handleKeys);
-  }, []);
+  }, [navigate]);
 
   return null;
 }

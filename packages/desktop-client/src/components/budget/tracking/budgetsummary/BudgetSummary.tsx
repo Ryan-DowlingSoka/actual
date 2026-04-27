@@ -13,20 +13,19 @@ import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
-import * as monthUtils from 'loot-core/shared/months';
+import { useTrackingBudget } from '#components/budget/tracking/TrackingBudgetContext';
+import { NotesButton } from '#components/NotesButton';
+import { useLocale } from '#hooks/useLocale';
+import { SheetNameProvider } from '#hooks/useSheetName';
+import { useUndo } from '#hooks/useUndo';
 
 import { BudgetMonthMenu } from './BudgetMonthMenu';
 import { ExpenseTotal } from './ExpenseTotal';
 import { IncomeTotal } from './IncomeTotal';
 import { Saved } from './Saved';
-
-import { useTrackingBudget } from '@desktop-client/components/budget/tracking/TrackingBudgetContext';
-import { NotesButton } from '@desktop-client/components/NotesButton';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
-import { useUndo } from '@desktop-client/hooks/useUndo';
 
 type BudgetSummaryProps = {
   month: string;
@@ -112,7 +111,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
                 width={13}
                 height={13}
                 // The margin is to make it the exact same size as the dots button
-                style={{ color: theme.pageTextSubdued, margin: 1 }}
+                style={{ color: theme.pageTextLight, margin: 1 }}
               />
             </Button>
           </View>
@@ -238,7 +237,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
             style={{
               alignSelf: 'center',
               alignItems: 'flex-start',
-              backgroundColor: theme.tableRowHeaderBackground,
+              backgroundColor: theme.budgetHeaderCurrentMonth,
               borderRadius: 4,
               padding: '10px 15px',
               marginTop: 13,
@@ -255,7 +254,7 @@ export function BudgetSummary({ month }: BudgetSummaryProps) {
               alignItems: 'center',
               padding: '10px 20px',
               justifyContent: 'space-between',
-              backgroundColor: theme.tableRowHeaderBackground,
+              backgroundColor: theme.budgetHeaderCurrentMonth,
               borderTop: '1px solid ' + theme.tableBorder,
             }}
           >

@@ -1,19 +1,19 @@
 // @ts-strict-ignore
-import { v4 as uuidv4 } from 'uuid';
 
-import { type TransactionEntity } from '../types/models';
+import type { TransactionEntity } from '#types/models';
 
 import {
+  addSplitTransaction,
+  deleteTransaction,
+  makeAsNonChildTransactions,
+  makeChild,
   splitTransaction,
   updateTransaction,
-  deleteTransaction,
-  addSplitTransaction,
-  makeChild,
 } from './transactions';
 
 function makeTransaction(data: Partial<TransactionEntity>): TransactionEntity {
   return {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     amount: 2422,
     date: '2020-01-05',
     account: 'acc-id-1',
@@ -50,7 +50,14 @@ describe('Transactions', () => {
       deleted: [],
       updated: [expect.objectContaining({ id: 't1', amount: 5000 })],
     });
-    expect(data.map(t => ({ id: t.id, amount: t.amount })).sort()).toEqual([
+    expect(
+      data
+        .map(t => ({ id: t.id, amount: t.amount }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount || String(a.id).localeCompare(String(b.id)),
+        ),
+    ).toEqual([
       { id: expect.any(String), amount: 5000 },
       { id: 't1', amount: 5000 },
       { id: expect.any(String), amount: 3000 },
@@ -65,7 +72,14 @@ describe('Transactions', () => {
     ];
     const { data, diff } = updateTransaction(transactions, updatedTransaction);
     expect(diff).toEqual({ added: [], deleted: [], updated: [] });
-    expect(data.map(t => ({ id: t.id, amount: t.amount })).sort()).toEqual([
+    expect(
+      data
+        .map(t => ({ id: t.id, amount: t.amount }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount || String(a.id).localeCompare(String(b.id)),
+        ),
+    ).toEqual([
       { id: expect.any(String), amount: 5000 },
       { id: expect.any(String), amount: 3000 },
     ]);
@@ -84,7 +98,14 @@ describe('Transactions', () => {
       deleted: [{ id: 't1' }],
       updated: [],
     });
-    expect(data.map(t => ({ id: t.id, amount: t.amount })).sort()).toEqual([
+    expect(
+      data
+        .map(t => ({ id: t.id, amount: t.amount }))
+        .sort(
+          (a, b) =>
+            b.amount - a.amount || String(a.id).localeCompare(String(b.id)),
+        ),
+    ).toEqual([
       { id: expect.any(String), amount: 5000 },
       { id: expect.any(String), amount: 3000 },
     ]);
@@ -179,6 +200,40 @@ describe('Transactions', () => {
     expect(data.length).toBe(5);
   });
 
+  test('partially updating a split parent preserves amount and does not set error', () => {
+    const transactions = [
+      makeTransaction({ amount: 2001 }),
+      ...makeSplitTransaction({ id: 't1', amount: 2500 }, [
+        { id: 't2', amount: 2000 },
+        { id: 't3', amount: 500 },
+      ]),
+      makeTransaction({ amount: 3002 }),
+    ];
+
+    // Simulate a partial update (only `notes`) on the parent — this is
+    // how `api.updateTransaction(id, { notes: '...' })` calls it in
+    // `api.ts`: `updateTransaction(transactions, { id, ...fields })`.
+    const { data, diff } = updateTransaction(transactions, {
+      id: 't1',
+      notes: 'updated note',
+    } as TransactionEntity);
+
+    // The parent should get the updated notes without an error
+    const parent = data.find(d => d.id === 't1');
+    expect(parent?.notes).toBe('updated note');
+    expect(parent?.amount).toBe(2500);
+    expect(parent?.error).toBeNull();
+
+    // Children should be unchanged
+    expect(data.filter(t => t.parent_id === 't1').length).toBe(2);
+
+    expect(diff).toEqual({
+      added: [],
+      deleted: [],
+      updated: [expect.objectContaining({ id: 't1', notes: 'updated note' })],
+    });
+  });
+
   test('deleting a split transaction works', () => {
     const transactions = [
       makeTransaction({ amount: 2001 }),
@@ -224,5 +279,58 @@ describe('Transactions', () => {
       expect.objectContaining({ amount: 2500, error: null }),
       expect.objectContaining({ amount: 3002 }),
     ]);
+  });
+
+  test('unlocking a reconciled split transaction propagates to children', () => {
+    const transactions = [
+      makeTransaction({ amount: 2001 }),
+      ...makeSplitTransaction({ id: 't1', amount: 2500, reconciled: true }, [
+        { id: 't2', amount: 2000, reconciled: true },
+        { id: 't3', amount: 500, reconciled: true },
+      ]),
+      makeTransaction({ amount: 3002 }),
+    ];
+
+    const { data, diff } = updateTransaction(transactions, {
+      ...transactions.find(t => t.id === 't1')!,
+      reconciled: false,
+    });
+
+    const children = data.filter(t => t.parent_id === 't1');
+    expect(children).toHaveLength(2);
+    expect(children.every(t => t.reconciled === false)).toBe(true);
+
+    expect(diff.updated).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 't1', reconciled: false }),
+        expect.objectContaining({ id: 't2', reconciled: false }),
+        expect.objectContaining({ id: 't3', reconciled: false }),
+      ]),
+    );
+  });
+
+  test('unsplitting last remaining child converts parent to regular transaction', () => {
+    const [parent, child] = makeSplitTransaction(
+      { id: 't1', amount: 2000, category: 'cat1' },
+      [{ id: 't2', amount: 0, category: 'cat2' }],
+    );
+
+    const transactions = [parent, child];
+
+    const result = makeAsNonChildTransactions([child], transactions);
+
+    expect(result.updated).toHaveLength(1);
+    expect(result.deleted).toHaveLength(1);
+
+    expect(result.updated[0]).toMatchObject({
+      id: 't1',
+      amount: 2000,
+      is_parent: false,
+      category: 'cat2',
+    });
+
+    expect(result.deleted[0]).toMatchObject({
+      id: 't2',
+    });
   });
 });

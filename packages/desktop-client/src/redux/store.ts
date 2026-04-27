@@ -4,64 +4,50 @@ import {
   createListenerMiddleware,
   isRejected,
 } from '@reduxjs/toolkit';
+import type { QueryClient } from '@tanstack/react-query';
 
 import {
   name as accountsSliceName,
   reducer as accountsSliceReducer,
-} from '@desktop-client/accounts/accountsSlice';
+} from '#accounts/accountsSlice';
 import {
   name as appSliceName,
   reducer as appSliceReducer,
-} from '@desktop-client/app/appSlice';
-import {
-  name as budgetSliceName,
-  reducer as budgetSliceReducer,
-} from '@desktop-client/budget/budgetSlice';
+} from '#app/appSlice';
 import {
   name as budgetfilesSliceName,
   reducer as budgetfilesSliceReducer,
-} from '@desktop-client/budgetfiles/budgetfilesSlice';
+} from '#budgetfiles/budgetfilesSlice';
 import {
   name as modalsSliceName,
   reducer as modalsSliceReducer,
-} from '@desktop-client/modals/modalsSlice';
+} from '#modals/modalsSlice';
 import {
+  addNotification,
   name as notificationsSliceName,
   reducer as notificationsSliceReducer,
-  addNotification,
-} from '@desktop-client/notifications/notificationsSlice';
-import {
-  name as payeesSliceName,
-  reducer as payeesSliceReducer,
-} from '@desktop-client/payees/payeesSlice';
+} from '#notifications/notificationsSlice';
 import {
   name as prefsSliceName,
   reducer as prefsSliceReducer,
-} from '@desktop-client/prefs/prefsSlice';
-import {
-  name as tagsSliceName,
-  reducer as tagsSliceReducer,
-} from '@desktop-client/tags/tagsSlice';
+} from '#prefs/prefsSlice';
 import {
   name as transactionsSliceName,
   reducer as transactionsSliceReducer,
-} from '@desktop-client/transactions/transactionsSlice';
+} from '#transactions/transactionsSlice';
 import {
   name as usersSliceName,
   reducer as usersSliceReducer,
-} from '@desktop-client/users/usersSlice';
+} from '#users/usersSlice';
 
 const rootReducer = combineReducers({
   [accountsSliceName]: accountsSliceReducer,
   [appSliceName]: appSliceReducer,
-  [budgetSliceName]: budgetSliceReducer,
   [budgetfilesSliceName]: budgetfilesSliceReducer,
   [modalsSliceName]: modalsSliceReducer,
   [notificationsSliceName]: notificationsSliceReducer,
-  [payeesSliceName]: payeesSliceReducer,
   [prefsSliceName]: prefsSliceReducer,
   [transactionsSliceName]: transactionsSliceReducer,
-  [tagsSliceName]: tagsSliceReducer,
   [usersSliceName]: usersSliceReducer,
 });
 
@@ -82,16 +68,28 @@ notifyOnRejectedActionsMiddleware.startListening({
   },
 });
 
-export const store = configureStore({
-  reducer: rootReducer,
-  middleware: getDefaultMiddleware =>
-    getDefaultMiddleware({
-      // TODO: Fix this in a separate PR. Remove non-serializable states in the store.
-      serializableCheck: false,
-    }).prepend(notifyOnRejectedActionsMiddleware.middleware),
-});
+export function configureAppStore({
+  queryClient,
+}: {
+  queryClient: QueryClient;
+}) {
+  return configureStore({
+    reducer: rootReducer,
+    middleware: getDefaultMiddleware =>
+      getDefaultMiddleware({
+        // TODO: Fix this in a separate PR. Remove non-serializable states in the store.
+        serializableCheck: false,
+        thunk: {
+          extraArgument: { queryClient } as ExtraArguments,
+        },
+      }).prepend(notifyOnRejectedActionsMiddleware.middleware),
+  });
+}
 
-export type AppStore = typeof store;
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
-export type GetRootState = typeof store.getState;
+export type AppStore = ReturnType<typeof configureAppStore>;
+export type RootState = ReturnType<AppStore['getState']>;
+export type AppDispatch = AppStore['dispatch'];
+export type GetRootState = AppStore['getState'];
+export type ExtraArguments = {
+  queryClient: QueryClient;
+};

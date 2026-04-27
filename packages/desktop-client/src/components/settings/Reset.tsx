@@ -3,15 +3,13 @@ import { Trans } from 'react-i18next';
 
 import { ButtonWithLoading } from '@actual-app/components/button';
 import { Text } from '@actual-app/components/text';
+import { send } from '@actual-app/core/platform/client/connection';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { isElectron } from 'loot-core/shared/environment';
+import { resetSync } from '#app/appSlice';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { useDispatch } from '#redux';
 
 import { Setting } from './UI';
-
-import { resetSync } from '@desktop-client/app/appSlice';
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { useDispatch } from '@desktop-client/redux';
 
 export function ResetCache() {
   const [resetting, setResetting] = useState(false);
@@ -86,49 +84,6 @@ export function ResetSync() {
           </Trans>
         </Text>
       )}
-    </Setting>
-  );
-}
-
-export function ForceReload() {
-  const [reloading, setReloading] = useState(false);
-
-  async function onForceReload() {
-    setReloading(true);
-    try {
-      if (!isElectron()) {
-        const registration =
-          await window.navigator.serviceWorker.getRegistration('/');
-        if (registration) {
-          await registration.update();
-          if (registration.waiting) {
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-        }
-      }
-    } catch {
-      // Do nothing
-    } finally {
-      window.location.reload();
-    }
-  }
-
-  return (
-    <Setting
-      primaryAction={
-        <ButtonWithLoading isLoading={reloading} onPress={onForceReload}>
-          <Trans>Force reload app</Trans>
-        </ButtonWithLoading>
-      }
-    >
-      <Text>
-        <Trans>
-          <strong>Force reload app</strong> will clear the cached version of the
-          app and load a fresh one. This is useful if you&apos;re experiencing
-          issues with the app after an update or if cached files are causing
-          problems. The app will reload automatically after clearing the cache.
-        </Trans>
-      </Text>
     </Setting>
   );
 }

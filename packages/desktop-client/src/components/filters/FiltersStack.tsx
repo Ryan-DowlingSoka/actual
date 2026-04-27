@@ -2,17 +2,14 @@ import React from 'react';
 
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { View } from '@actual-app/components/view';
-
-import {
-  type TransactionFilterEntity,
-  type RuleConditionEntity,
-} from 'loot-core/types/models';
+import type {
+  RuleConditionEntity,
+  TransactionFilterEntity,
+} from '@actual-app/core/types/models';
 
 import { AppliedFilters } from './AppliedFilters';
-import {
-  type SavedFilter,
-  SavedFilterMenuButton,
-} from './SavedFilterMenuButton';
+import { SavedFilterMenuButton } from './SavedFilterMenuButton';
+import type { SavedFilter } from './SavedFilterMenuButton';
 
 export function FiltersStack({
   conditions,

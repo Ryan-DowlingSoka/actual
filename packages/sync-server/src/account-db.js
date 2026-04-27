@@ -59,7 +59,11 @@ export function getLoginMethod(req) {
     (req.body || { loginMethod: null }).loginMethod &&
     config.get('allowedLoginMethods').includes(req.body.loginMethod)
   ) {
-    return req.body.loginMethod;
+    const accountDb = getAccountDb();
+    const row = accountDb.first('SELECT method FROM auth WHERE method = ?', [
+      req.body.loginMethod,
+    ]);
+    if (row) return req.body.loginMethod;
   }
 
   //BY-PASS ANY OTHER CONFIGURATION TO ENSURE HEADER AUTH
@@ -172,15 +176,13 @@ export async function disableOpenID(loginSettings) {
     return { error: 'invalid-password' };
   }
 
-  if (passwordHash) {
-    const confirmed = bcrypt.compareSync(loginSettings.password, passwordHash);
+  const confirmed = bcrypt.compareSync(loginSettings.password, passwordHash);
 
-    if (!confirmed) {
-      return { error: 'invalid-password' };
-    }
+  if (!confirmed) {
+    return { error: 'invalid-password' };
   }
 
-  const { error } = (await bootstrapPassword(loginSettings.password)) || {};
+  const { error } = bootstrapPassword(loginSettings.password);
   if (error) {
     return { error };
   }
@@ -225,6 +227,33 @@ export function getUserPermission(userId) {
   ) || { role: '' };
 
   return role;
+}
+
+export function getServerPrefs() {
+  const accountDb = getAccountDb();
+  const rows = accountDb.all('SELECT key, value FROM server_prefs') || [];
+
+  return rows.reduce((prefs, row) => {
+    prefs[row.key] = row.value;
+    return prefs;
+  }, {});
+}
+
+export function setServerPrefs(prefs) {
+  const accountDb = getAccountDb();
+
+  if (!prefs) {
+    return;
+  }
+
+  accountDb.transaction(() => {
+    Object.entries(prefs).forEach(([key, value]) => {
+      accountDb.mutate(
+        'INSERT INTO server_prefs (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value',
+        [key, value],
+      );
+    });
+  });
 }
 
 export function clearExpiredSessions() {

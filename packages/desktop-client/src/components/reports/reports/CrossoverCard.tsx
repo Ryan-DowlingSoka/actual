@@ -1,51 +1,30 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Block } from '@actual-app/components/block';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  AccountEntity,
+  CrossoverWidget,
+} from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type AccountEntity,
-  type CrossoverWidget,
-} from 'loot-core/types/models';
-
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { CrossoverGraph } from '@desktop-client/components/reports/graphs/CrossoverGraph';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { ReportCard } from '@desktop-client/components/reports/ReportCard';
-import { ReportCardName } from '@desktop-client/components/reports/ReportCardName';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { createCrossoverSpreadsheet } from '@desktop-client/components/reports/spreadsheets/crossover-spreadsheet';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-
-// Type for the return value of the recalculate function
-type CrossoverData = {
-  graphData: {
-    data: Array<{
-      x: string;
-      investmentIncome: number;
-      expenses: number;
-      nestEgg: number;
-      isProjection?: boolean;
-    }>;
-    start: string;
-    end: string;
-    crossoverXLabel: string | null;
-  };
-  lastKnownBalance: number;
-  lastKnownMonthlyIncome: number;
-  lastKnownMonthlyExpenses: number;
-  historicalReturn: number | null;
-  yearsToRetire: number | null;
-  targetMonthlyIncome: number | null;
-  targetNestEgg: number | null;
-};
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { CrossoverGraph } from '#components/reports/graphs/CrossoverGraph';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { ReportCard } from '#components/reports/ReportCard';
+import { ReportCardName } from '#components/reports/ReportCardName';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { createCrossoverSpreadsheet } from '#components/reports/spreadsheets/crossover-spreadsheet';
+import type { CrossoverData } from '#components/reports/spreadsheets/crossover-spreadsheet';
+import { useDashboardWidgetCopyMenu } from '#components/reports/useDashboardWidgetCopyMenu';
+import { useReport } from '#components/reports/useReport';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
 
 type CrossoverCardProps = {
   widgetId: string;
@@ -54,6 +33,7 @@ type CrossoverCardProps = {
   meta?: CrossoverWidget['meta'];
   onMetaChange: (newMeta: CrossoverWidget['meta']) => void;
   onRemove: () => void;
+  onCopy: (targetDashboardId: string) => void;
 };
 
 export function CrossoverCard({
@@ -63,11 +43,16 @@ export function CrossoverCard({
   meta = {},
   onMetaChange,
   onRemove,
+  onCopy,
 }: CrossoverCardProps) {
+  const locale = useLocale();
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
 
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
+
+  const { menuItems: copyMenuItems, handleMenuSelect: handleCopyMenuSelect } =
+    useDashboardWidgetCopyMenu(onCopy);
 
   // Calculate date range from meta or use default range
   const [start, setStart] = useState<string>('');
@@ -95,7 +80,7 @@ export function CrossoverCard({
         .rangeInclusive(earliestDate, latestDate)
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy'),
+          pretty: monthUtils.format(month, 'MMMM yyyy', locale),
         }))
         .reverse();
 
@@ -141,11 +126,11 @@ export function CrossoverCard({
         setEnd(end);
       }
     }
-    calculateDateRange();
+    void calculateDateRange();
     return () => {
       isMounted = false;
     };
-  }, [meta?.timeFrame]);
+  }, [meta?.timeFrame, locale]);
 
   const [isCardHovered, setIsCardHovered] = useState(false);
   const onCardHover = useCallback(() => setIsCardHovered(true), []);
@@ -164,7 +149,10 @@ export function CrossoverCard({
 
   const swr = meta?.safeWithdrawalRate ?? 0.04;
   const estimatedReturn = meta?.estimatedReturn ?? null;
-  const projectionType = meta?.projectionType ?? 'hampel';
+  const expectedContribution = meta?.expectedContribution ?? null;
+  const projectionType: 'hampel' | 'median' | 'mean' =
+    meta?.projectionType ?? 'hampel';
+  const expenseAdjustmentFactor = meta?.expenseAdjustmentFactor ?? 1.0;
 
   const params = useMemo(
     () =>
@@ -174,8 +162,10 @@ export function CrossoverCard({
         expenseCategoryIds,
         incomeAccountIds,
         safeWithdrawalRate: swr,
-        estimatedReturn: estimatedReturn == null ? null : estimatedReturn,
+        estimatedReturn,
+        expectedContribution,
         projectionType,
+        expenseAdjustmentFactor,
       }),
     [
       start,
@@ -184,7 +174,9 @@ export function CrossoverCard({
       incomeAccountIds,
       swr,
       estimatedReturn,
+      expectedContribution,
       projectionType,
+      expenseAdjustmentFactor,
     ],
   );
 
@@ -201,8 +193,10 @@ export function CrossoverCard({
       menuItems={[
         { name: 'rename', text: t('Rename') },
         { name: 'remove', text: t('Remove') },
+        ...copyMenuItems,
       ]}
       onMenuSelect={item => {
+        if (handleCopyMenuSelect(item)) return;
         switch (item) {
           case 'rename':
             setNameMenuOpen(true);

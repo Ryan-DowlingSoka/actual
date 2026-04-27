@@ -1,9 +1,8 @@
 // @ts-strict-ignore
-import { v4 as uuidv4 } from 'uuid';
 
-import { q } from '../../shared/query';
-import { makeChild } from '../../shared/transactions';
-import * as db from '../db';
+import * as db from '#server/db';
+import { q } from '#shared/query';
+import { makeChild } from '#shared/transactions';
 
 import * as aql from './exec';
 import { schema, schemaConfig } from './schema';
@@ -39,14 +38,14 @@ async function insertTransactions(repeatTimes = 1) {
     });
 
     const parent = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       account: 'acct',
       date: '2020-01-04',
       amount: -100,
       is_parent: true,
     };
     const parent2 = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       account: 'acct',
       date: '2020-01-01',
       amount: -89,
@@ -114,7 +113,7 @@ describe('compileAndRunQuery', () => {
   });
 
   it('provides named parameters and converts types', async () => {
-    const transId = uuidv4();
+    const transId = crypto.randomUUID();
     await db.insertTransaction({
       id: transId,
       account: 'acct',
@@ -243,7 +242,7 @@ describe('compileAndRunQuery', () => {
   });
 
   it('parameters have the correct order', async () => {
-    const transId = uuidv4();
+    const transId = crypto.randomUUID();
     await db.insertTransaction({
       id: transId,
       account: 'acct',
@@ -271,7 +270,7 @@ describe('compileAndRunQuery', () => {
       'SELECT id FROM transactions WHERE amount < -50',
     );
     const ids = rows.slice(0, 3).map(row => row.id);
-    ids.sort();
+    ids.sort((a, b) => String(a).localeCompare(String(b)));
 
     const { data } = await compileAndRunAqlQuery(
       q('transactions')
@@ -280,6 +279,10 @@ describe('compileAndRunQuery', () => {
         .raw()
         .serialize(),
     );
-    expect(data.map(row => row.id).sort()).toEqual(ids);
+    expect(
+      data
+        .map(row => row.id)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    ).toEqual(ids);
   });
 });

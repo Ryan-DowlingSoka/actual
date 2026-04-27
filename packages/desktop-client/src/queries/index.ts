@@ -1,17 +1,20 @@
-// @ts-strict-ignore
-import { parse as parseDate, isValid as isDateValid } from 'date-fns';
-
 import {
   dayFromDate,
-  getDayMonthRegex,
   getDayMonthFormat,
-  getShortYearRegex,
+  getDayMonthRegex,
   getShortYearFormat,
-} from 'loot-core/shared/months';
-import { q, type Query } from 'loot-core/shared/query';
-import { currencyToAmount, amountToInteger } from 'loot-core/shared/util';
-import { type AccountEntity } from 'loot-core/types/models';
-import { type SyncedPrefs } from 'loot-core/types/prefs';
+  getShortYearRegex,
+} from '@actual-app/core/shared/months';
+import { q } from '@actual-app/core/shared/query';
+import type { Query } from '@actual-app/core/shared/query';
+import {
+  amountToInteger,
+  currencyToAmount,
+} from '@actual-app/core/shared/util';
+import type { AccountEntity } from '@actual-app/core/types/models';
+import type { SyncedPrefs } from '@actual-app/core/types/prefs';
+// @ts-strict-ignore
+import { isValid as isDateValid, parse as parseDate } from 'date-fns';
 
 export function accountFilter(
   accountId?:
@@ -83,6 +86,7 @@ export function transactionsSearch(
   dateFormat: SyncedPrefs['dateFormat'],
 ) {
   const amount = currencyToAmount(search);
+  const escapedSearch = search.replace(/[\\%?]/g, '\\$&');
 
   // Support various date formats
   let parsedDate;
@@ -96,11 +100,11 @@ export function transactionsSearch(
 
   return currentQuery.filter({
     $or: {
-      'payee.name': { $like: `%${search}%` },
-      'payee.transfer_acct.name': { $like: `%${search}%` },
-      notes: { $like: `%${search}%` },
-      'category.name': { $like: `%${search}%` },
-      'account.name': { $like: `%${search}%` },
+      'payee.name': { $like: `%${escapedSearch}%` },
+      'payee.transfer_acct.name': { $like: `%${escapedSearch}%` },
+      notes: { $like: `%${escapedSearch}%` },
+      'category.name': { $like: `%${escapedSearch}%` },
+      'account.name': { $like: `%${escapedSearch}%` },
       $or: [
         isDateValid(parsedDate) && { date: dayFromDate(parsedDate) },
         amount != null && {

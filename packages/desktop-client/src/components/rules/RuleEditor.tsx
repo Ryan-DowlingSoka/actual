@@ -1,19 +1,13 @@
 // @ts-strict-ignore
-import {
-  useState,
-  useEffect,
-  useRef,
-  useMemo,
-  type CSSProperties,
-  type ReactNode,
-} from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import {
-  SvgDelete,
   SvgAdd,
+  SvgDelete,
   SvgSubtract,
 } from '@actual-app/components/icons/v0';
 import {
@@ -28,53 +22,46 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import { css } from '@emotion/css';
-import { v4 as uuid } from 'uuid';
-
-import { send } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-import { q } from 'loot-core/shared/query';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import { q } from '@actual-app/core/shared/query';
 import {
-  mapField,
+  FIELD_TYPES,
   friendlyOp,
+  getAllocationMethods,
   getFieldError,
+  getValidOps,
+  isValidOp,
+  makeValue,
+  mapField,
   parse,
   unparse,
-  makeValue,
-  FIELD_TYPES,
-  getAllocationMethods,
-  isValidOp,
-  getValidOps,
-} from 'loot-core/shared/rules';
-import {
-  type RuleEntity,
-  type NewRuleEntity,
-  type RuleActionEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/shared/rules';
+import type { ScheduleStatusType } from '@actual-app/core/shared/schedules';
+import type {
+  NewRuleEntity,
+  RuleActionEntity,
+  RuleEntity,
+} from '@actual-app/core/types/models';
+import { css } from '@emotion/css';
+
+import { FinancialText } from '#components/FinancialText';
+import { StatusBadge } from '#components/schedules/StatusBadge';
+import { SimpleTransactionsTable } from '#components/transactions/SimpleTransactionsTable';
+import { BetweenAmountInput } from '#components/util/AmountInput';
+import { DisplayId } from '#components/util/DisplayId';
+import { GenericInput } from '#components/util/GenericInput';
+import { useDateFormat } from '#hooks/useDateFormat';
+import { useFeatureFlag } from '#hooks/useFeatureFlag';
+import { useFormat } from '#hooks/useFormat';
+import { useSchedules } from '#hooks/useSchedules';
+import { SelectedProvider, useSelected } from '#hooks/useSelected';
+import { addNotification } from '#notifications/notificationsSlice';
+import { aqlQuery } from '#queries/aqlQuery';
+import { useDispatch } from '#redux';
+import { disableUndo, enableUndo } from '#undo';
 
 import { FormulaActionEditor } from './FormulaActionEditor';
-
-import { StatusBadge } from '@desktop-client/components/schedules/StatusBadge';
-import { SimpleTransactionsTable } from '@desktop-client/components/transactions/SimpleTransactionsTable';
-import { BetweenAmountInput } from '@desktop-client/components/util/AmountInput';
-import { DisplayId } from '@desktop-client/components/util/DisplayId';
-import { GenericInput } from '@desktop-client/components/util/GenericInput';
-import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useFeatureFlag } from '@desktop-client/hooks/useFeatureFlag';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import {
-  useSchedules,
-  type ScheduleStatusType,
-} from '@desktop-client/hooks/useSchedules';
-import {
-  useSelected,
-  SelectedProvider,
-} from '@desktop-client/hooks/useSelected';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { getPayees } from '@desktop-client/payees/payeesSlice';
-import { aqlQuery } from '@desktop-client/queries/aqlQuery';
-import { useDispatch } from '@desktop-client/redux';
-import { enableUndo, disableUndo } from '@desktop-client/undo';
 
 function updateValue(array, value, update) {
   return array.map(v => (v === value ? update() : v));
@@ -421,7 +408,10 @@ function ScheduleDescription({ id }) {
 
         <Text style={{ flexShrink: 0 }}>
           <Text> — </Text>
-          <Trans>Amount:</Trans> {formatAmount(schedule._amount, format)}
+          <Trans>Amount:</Trans>{' '}
+          <FinancialText>
+            {formatAmount(schedule._amount, format)}
+          </FinancialText>
         </Text>
 
         <Text style={{ flexShrink: 0 }}>
@@ -454,8 +444,8 @@ function getSplitActionFields() {
     ([field]) => !parentOnlyFields.includes(field),
   );
 }
-function getAllocationMethodOptions() {
-  return Object.entries(getAllocationMethods());
+function getAllocationMethodOptions(isFormulaEnabled = false) {
+  return Object.entries(getAllocationMethods(isFormulaEnabled));
 }
 
 type ActionEditorProps = {
@@ -574,31 +564,15 @@ function ActionEditor({
                     : onChange('formula', options.formula || value || '=')
                 }
               >
-                {hasFormula ? (
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'serif',
-                      textAlign: 'center',
-                    }}
-                  >
-                    ƒ
-                  </span>
-                ) : hasFormula ? (
-                  <SvgCode
-                    style={{ width: 12, height: 12, color: 'inherit' }}
-                  />
-                ) : (
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontFamily: 'serif',
-                      textAlign: 'center',
-                    }}
-                  >
-                    ƒ
-                  </span>
-                )}
+                <span
+                  style={{
+                    fontSize: 14,
+                    fontFamily: 'serif',
+                    textAlign: 'center',
+                  }}
+                >
+                  ƒ
+                </span>
               </Button>
             )}
           {isTemplatingEnabled &&
@@ -634,7 +608,7 @@ function ActionEditor({
           </View>
 
           <SplitAmountMethodSelect
-            options={getAllocationMethodOptions()}
+            options={getAllocationMethodOptions(isFormulaEnabled)}
             value={options.method}
             onChange={onChange}
           />
@@ -645,7 +619,12 @@ function ActionEditor({
               minWidth: options.method === 'fixed-percent' ? 45 : 70,
             }}
           >
-            {options.method !== 'remainder' && (
+            {options.method === 'formula' ? (
+              <FormulaActionEditor
+                value={options?.formula || '='}
+                onChange={v => onChange('formula', v, { formula: true })}
+              />
+            ) : options.method !== 'remainder' ? (
               <GenericInput
                 key={inputKey}
                 // @ts-expect-error fix this
@@ -658,8 +637,34 @@ function ActionEditor({
                 value={value}
                 onChange={v => onChange('value', v)}
               />
-            )}
+            ) : null}
           </View>
+          {options.method === 'formula' && (
+            <View
+              style={{
+                padding: 5,
+                backgroundColor: theme.buttonPrimaryBackground,
+                height: 24,
+                width: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 4,
+              }}
+              aria-label={t('Formula mode indicator')}
+              role="img"
+            >
+              <span
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'serif',
+                  textAlign: 'center',
+                }}
+              >
+                ƒ
+              </span>
+            </View>
+          )}
         </>
       ) : op === 'link-schedule' ? (
         <>
@@ -777,7 +782,7 @@ function StageButton({
 }
 
 function newInput(item) {
-  return { ...item, inputKey: uuid() };
+  return { ...item, inputKey: crypto.randomUUID() };
 }
 
 function ConditionsList({
@@ -815,7 +820,7 @@ function ConditionsList({
       field,
       op: 'is',
       value: null,
-      inputKey: uuid(),
+      inputKey: crypto.randomUUID(),
     });
     onChangeConditions(copy);
   }
@@ -972,6 +977,7 @@ const conditionFields = [
   'imported_payee',
   'account',
   'category',
+  'category_group',
   'date',
   'payee',
   'notes',
@@ -1000,19 +1006,27 @@ export function RuleEditor({
 }: RuleEditorProps) {
   const { t } = useTranslation();
   const [conditions, setConditions] = useState(
-    defaultRule.conditions.map(parse).map(c => ({ ...c, inputKey: uuid() })),
+    defaultRule.conditions
+      .map(parse)
+      .map(c => ({ ...c, inputKey: crypto.randomUUID() })),
   );
   const [actionSplits, setActionSplits] = useState(() => {
     const parsedActions = defaultRule.actions.map(parse);
     return parsedActions.reduce(
       (acc, action) => {
         const splitIndex = action.options?.splitIndex ?? 0;
-        acc[splitIndex] = acc[splitIndex] ?? { id: uuid(), actions: [] };
-        acc[splitIndex].actions.push({ ...action, inputKey: uuid() });
+        acc[splitIndex] = acc[splitIndex] ?? {
+          id: crypto.randomUUID(),
+          actions: [],
+        };
+        acc[splitIndex].actions.push({
+          ...action,
+          inputKey: crypto.randomUUID(),
+        });
         return acc;
       },
       // The pre-split group is always there
-      [{ id: uuid(), actions: [] }],
+      [{ id: crypto.randomUUID(), actions: [] }],
     );
   });
   const [stage, setStage] = useState(defaultRule.stage);
@@ -1026,8 +1040,6 @@ export function RuleEditor({
   );
 
   useEffect(() => {
-    dispatch(getPayees());
-
     // Disable undo while this modal is open
     disableUndo();
     return () => enableUndo();
@@ -1062,7 +1074,7 @@ export function RuleEditor({
         setTransactions([]);
       }
     }
-    run();
+    void run();
   }, [actionSplits, conditions, conditionsOp]);
 
   const selectedInst = useSelected('transactions', transactions, []);
@@ -1074,12 +1086,12 @@ export function RuleEditor({
   function addActionToSplitAfterIndex(splitIndex, actionIndex) {
     let newAction;
     if (splitIndex && !actionSplits[splitIndex]?.actions?.length) {
-      actionSplits[splitIndex] = { id: uuid(), actions: [] };
+      actionSplits[splitIndex] = { id: crypto.randomUUID(), actions: [] };
       newAction = {
         op: 'set-split-amount',
         options: { method: 'remainder', splitIndex },
         value: null,
-        inputKey: uuid(),
+        inputKey: crypto.randomUUID(),
       };
     } else {
       const fieldsArray =
@@ -1095,7 +1107,7 @@ export function RuleEditor({
         op: 'set',
         value: '',
         options: { splitIndex },
-        inputKey: uuid(),
+        inputKey: crypto.randomUUID(),
       };
     }
 
@@ -1221,7 +1233,7 @@ export function RuleEditor({
     const selectedTransactions = transactions.filter(({ id }) =>
       selectedInst.items.has(id),
     );
-    send('rule-apply-actions', {
+    void send('rule-apply-actions', {
       transactions: selectedTransactions,
       actions: getUnparsedActions(actionSplits),
     }).then(content => {

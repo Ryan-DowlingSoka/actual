@@ -1,18 +1,18 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { RemoteFile } from '@actual-app/core/server/cloud-storage';
+import { getDownloadError, getSyncError } from '@actual-app/core/shared/errors';
+import type { Budget } from '@actual-app/core/types/budget';
+import type { File } from '@actual-app/core/types/file';
+import type { Handlers } from '@actual-app/core/types/handlers';
+import { createSlice } from '@reduxjs/toolkit';
+import type { PayloadAction } from '@reduxjs/toolkit';
 import { t } from 'i18next';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type RemoteFile } from 'loot-core/server/cloud-storage';
-import { getDownloadError, getSyncError } from 'loot-core/shared/errors';
-import { type Budget } from 'loot-core/types/budget';
-import { type File } from 'loot-core/types/file';
-import { type Handlers } from 'loot-core/types/handlers';
-
-import { resetApp, setAppState } from '@desktop-client/app/appSlice';
-import { closeModal, pushModal } from '@desktop-client/modals/modalsSlice';
-import { loadGlobalPrefs, loadPrefs } from '@desktop-client/prefs/prefsSlice';
-import { createAppAsyncThunk } from '@desktop-client/redux';
-import { signOut } from '@desktop-client/users/usersSlice';
+import { resetApp, setAppState } from '#app/appSlice';
+import { closeModal, pushModal } from '#modals/modalsSlice';
+import { loadGlobalPrefs, loadPrefs } from '#prefs/prefsSlice';
+import { createAppAsyncThunk } from '#redux';
+import { signOut } from '#users/usersSlice';
 
 const sliceName = 'budgetfiles';
 
@@ -21,7 +21,7 @@ export const loadBudgets = createAppAsyncThunk(
   async (_, { dispatch }) => {
     const budgets = await send('get-budgets');
 
-    await dispatch(setBudgets({ budgets }));
+    dispatch(setBudgets({ budgets }));
   },
 );
 
@@ -30,7 +30,7 @@ export const loadRemoteFiles = createAppAsyncThunk(
   async (_, { dispatch }) => {
     const files = await send('get-remote-files');
 
-    await dispatch(setRemoteFiles({ remoteFiles: files }));
+    dispatch(setRemoteFiles({ remoteFiles: files }));
   },
 );
 
@@ -40,7 +40,7 @@ export const loadAllFiles = createAppAsyncThunk(
     const budgets = await send('get-budgets');
     const files = await send('get-remote-files');
 
-    await dispatch(setAllFiles({ budgets, remoteFiles: files }));
+    dispatch(setAllFiles({ budgets, remoteFiles: files }));
 
     return getState().budgetfiles.allFiles;
   },
@@ -55,7 +55,7 @@ type LoadBudgetPayload = {
 export const loadBudget = createAppAsyncThunk(
   `${sliceName}/loadBudget`,
   async ({ id, options = {} }: LoadBudgetPayload, { dispatch }) => {
-    await dispatch(setAppState({ loadingText: t('Loading...') }));
+    dispatch(setAppState({ loadingText: t('Loading...') }));
 
     // Loading a budget may fail
     const { error } = await send('load-budget', { id, ...options });
@@ -63,9 +63,7 @@ export const loadBudget = createAppAsyncThunk(
     if (error) {
       const message = getSyncError(error, id);
       if (error === 'out-of-sync-migrations') {
-        await dispatch(
-          pushModal({ modal: { name: 'out-of-sync-migrations' } }),
-        );
+        dispatch(pushModal({ modal: { name: 'out-of-sync-migrations' } }));
       } else if (error === 'out-of-sync-data') {
         // confirm is not available on iOS
         if (typeof window.confirm !== 'undefined') {
@@ -78,7 +76,7 @@ export const loadBudget = createAppAsyncThunk(
           );
 
           if (showBackups) {
-            await dispatch(
+            dispatch(
               pushModal({ modal: { name: 'load-backup', options: {} } }),
             );
           }
@@ -89,23 +87,24 @@ export const loadBudget = createAppAsyncThunk(
         alert(message);
       }
     } else {
-      await dispatch(closeModal());
+      dispatch(closeModal());
       await dispatch(loadPrefs());
     }
 
-    await dispatch(setAppState({ loadingText: null }));
+    dispatch(setAppState({ loadingText: null }));
   },
 );
 
 export const closeBudget = createAppAsyncThunk(
   `${sliceName}/closeBudget`,
-  async (_, { dispatch, getState }) => {
+  async (_, { dispatch, getState, extra: { queryClient } }) => {
     const prefs = getState().prefs.local;
     if (prefs && prefs.id) {
-      await dispatch(resetApp());
-      await dispatch(setAppState({ loadingText: t('Closing...') }));
+      dispatch(resetApp());
+      queryClient.clear();
+      dispatch(setAppState({ loadingText: t('Closing...') }));
       await send('close-budget');
-      await dispatch(setAppState({ loadingText: null }));
+      dispatch(setAppState({ loadingText: null }));
       if (localStorage.getItem('SharedArrayBufferOverride')) {
         window.location.reload();
       }
@@ -115,10 +114,11 @@ export const closeBudget = createAppAsyncThunk(
 
 export const closeBudgetUI = createAppAsyncThunk(
   `${sliceName}/closeBudgetUI`,
-  async (_, { dispatch, getState }) => {
+  async (_, { dispatch, getState, extra: { queryClient } }) => {
     const prefs = getState().prefs.local;
     if (prefs && prefs.id) {
-      await dispatch(resetApp());
+      dispatch(resetApp());
+      queryClient.clear();
     }
   },
 );
@@ -147,7 +147,7 @@ export const createBudget = createAppAsyncThunk(
     { testMode = false, demoMode = false }: CreateBudgetPayload,
     { dispatch },
   ) => {
-    await dispatch(
+    dispatch(
       setAppState({
         loadingText:
           testMode || demoMode ? t('Making demo...') : t('Creating budget...'),
@@ -160,14 +160,14 @@ export const createBudget = createAppAsyncThunk(
       await send('create-budget', { testMode });
     }
 
-    await dispatch(closeModal());
+    dispatch(closeModal());
 
     await dispatch(loadAllFiles());
     await dispatch(loadPrefs());
 
     // Set the loadingText to null after we've loaded the budget prefs
     // so that the existing manager page doesn't flash
-    await dispatch(setAppState({ loadingText: null }));
+    dispatch(setAppState({ loadingText: null }));
   },
 );
 
@@ -203,7 +203,7 @@ export const duplicateBudget = createAppAsyncThunk(
     }
 
     try {
-      await dispatch(
+      dispatch(
         setAppState({
           loadingText: t('Duplicating: {{oldName}} to: {{newName}}', {
             oldName,
@@ -219,7 +219,7 @@ export const duplicateBudget = createAppAsyncThunk(
         open: loadBudget,
       });
 
-      await dispatch(closeModal());
+      dispatch(closeModal());
 
       if (managePage) {
         await dispatch(loadAllFiles());
@@ -230,7 +230,7 @@ export const duplicateBudget = createAppAsyncThunk(
         ? error
         : new Error('Error duplicating budget: ' + String(error));
     } finally {
-      await dispatch(setAppState({ loadingText: null }));
+      dispatch(setAppState({ loadingText: null }));
     }
   },
 );
@@ -248,7 +248,7 @@ export const importBudget = createAppAsyncThunk(
       throw new Error(error);
     }
 
-    await dispatch(closeModal());
+    dispatch(closeModal());
     await dispatch(loadPrefs());
   },
 );
@@ -305,7 +305,7 @@ export const downloadBudget = createAppAsyncThunk(
     { cloudFileId, replace = false }: DownloadBudgetPayload,
     { dispatch },
   ): Promise<string | null> => {
-    await dispatch(
+    dispatch(
       setAppState({
         loadingText: t('Downloading...'),
       }),
@@ -326,14 +326,14 @@ export const downloadBudget = createAppAsyncThunk(
           ),
           cloudFileId,
           onSuccess: () => {
-            dispatch(downloadBudget({ cloudFileId, replace }));
+            void dispatch(downloadBudget({ cloudFileId, replace }));
           },
         };
 
-        await dispatch(
+        dispatch(
           pushModal({ modal: { name: 'fix-encryption-key', options: opts } }),
         );
-        await dispatch(setAppState({ loadingText: null }));
+        dispatch(setAppState({ loadingText: null }));
       } else if (error.reason === 'file-exists') {
         alert(
           t(
@@ -359,7 +359,7 @@ export const downloadBudget = createAppAsyncThunk(
           downloadBudget({ cloudFileId, replace: true }),
         ).unwrap();
       } else {
-        await dispatch(setAppState({ loadingText: null }));
+        dispatch(setAppState({ loadingText: null }));
         alert(getDownloadError(error));
       }
       return null;
@@ -372,7 +372,7 @@ export const downloadBudget = createAppAsyncThunk(
         dispatch(loadAllFiles()),
         dispatch(loadBudget({ id })),
       ]);
-      await dispatch(setAppState({ loadingText: null }));
+      dispatch(setAppState({ loadingText: null }));
       return id;
     }
   },

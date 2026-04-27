@@ -1,9 +1,9 @@
 import { join } from 'path';
 
-import { type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
-import { type AccountPage } from './page-models/account-page';
+import type { AccountPage } from './page-models/account-page';
 import { ConfigurationPage } from './page-models/configuration-page';
 import { Navigation } from './page-models/navigation';
 
@@ -86,7 +86,14 @@ test.describe('Accounts', () => {
         credit: '34.56',
       });
 
-      await page.waitForTimeout(100); // Give time for the previous transaction to be rendered
+      // Wait for both newly created transactions to actually be in the
+      // transaction list before selecting them. A bare waitForTimeout(100)
+      // here is not enough under parallel CI load: the second
+      // createSingleTransaction's row may still be mounting when the
+      // selection clicks land, so the selection doesn't stick and the
+      // 'Make transfer' button (rendered only when items are selected)
+      // never appears.
+      await expect(accountPage.getNthTransaction(1).payee).toBeVisible();
 
       await accountPage.selectNthTransaction(0);
       await accountPage.selectNthTransaction(1);
@@ -158,9 +165,7 @@ test.describe('Accounts', () => {
       await expect(page).toMatchThemeScreenshots();
 
       await expect(importButton).toBeDisabled();
-      await expect(await importButton.innerText()).toMatch(
-        /Import 0 transactions/,
-      );
+      expect(await importButton.innerText()).toMatch(/Import 0 transactions/);
 
       await accountPage.page.getByRole('button', { name: 'Close' }).click();
 

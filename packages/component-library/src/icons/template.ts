@@ -1,4 +1,4 @@
-import { type Config } from '@svgr/core';
+import type { Config } from '@svgr/core';
 
 const tmpl: Config['template'] = (
   { imports, interfaces, componentName, props, jsx },
@@ -15,4 +15,4 @@ export const ${componentName} = (${props}) => (
 `;
 };
 
-module.exports = tmpl;
+export default tmpl;

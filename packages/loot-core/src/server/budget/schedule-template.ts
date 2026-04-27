@@ -1,26 +1,28 @@
 // @ts-strict-ignore
-import * as monthUtils from '../../shared/months';
-import {
-  getNextDate,
-  getDateWithSkippedWeekend,
-  extractScheduleConds,
-} from '../../shared/schedules';
-import { type CategoryEntity } from '../../types/models';
-import {
-  type ScheduleTemplate,
-  type Template,
-} from '../../types/models/templates';
-import * as db from '../db';
-import { getRuleForSchedule } from '../schedules/app';
 
-import { getSheetValue, isReflectBudget } from './actions';
+import * as db from '#server/db';
+import { collectFormulasFromActions } from '#server/rules/balanceOfFormula';
+import { getRuleForSchedule } from '#server/schedules/app';
+import { prefetchBalanceOfForTransaction } from '#server/transactions/transaction-rules';
+import type { Currency } from '#shared/currencies';
+import * as monthUtils from '#shared/months';
+import {
+  extractScheduleConds,
+  getDateWithSkippedWeekend,
+  getNextDate,
+} from '#shared/schedules';
+import { amountToInteger } from '#shared/util';
+import type { CategoryEntity, TransactionEntity } from '#types/models';
+import type { ScheduleTemplate, Template } from '#types/models/templates';
+
+import { getSheetValue, isTrackingBudget } from './actions';
 
 type ScheduleTemplateTarget = {
   name: string;
   target: number;
   next_date_string: string;
   target_interval: number;
-  target_frequency: string;
+  target_frequency: string | undefined;
   num_months: number;
   completed: number;
   full: boolean;
@@ -31,9 +33,12 @@ async function createScheduleList(
   templates: ScheduleTemplate[],
   current_month: string,
   category: CategoryEntity,
+  currency: Currency,
 ) {
   const t: Array<ScheduleTemplateTarget> = [];
   const errors: string[] = [];
+  const accounts = (await db.getAccounts()) ?? [];
+  const accountsMap = new Map(accounts.map(a => [a.id, a]));
 
   for (const template of templates) {
     const { id: sid, completed } = await db.first<
@@ -52,14 +57,59 @@ async function createScheduleList(
           2
         : amountCondition.value;
     // Apply adjustment percentage if specified
-    if (template.adjustment) {
-      const adjustmentFactor = 1 + template.adjustment / 100;
-      scheduleAmount = Math.round(scheduleAmount * adjustmentFactor);
+    if (template.adjustment !== undefined && template.adjustmentType) {
+      switch (template.adjustmentType) {
+        case 'percent': {
+          const adjustmentFactor = 1 + template.adjustment / 100;
+          scheduleAmount = scheduleAmount * adjustmentFactor;
+          break;
+        }
+        case 'fixed': {
+          const sign = scheduleAmount < 0 ? -1 : 1;
+          scheduleAmount +=
+            sign * amountToInteger(template.adjustment, currency.decimalPlaces);
+          break;
+        }
+
+        default:
+        //no valid adjustment was found
+      }
     }
-    const { amount: postRuleAmount, subtransactions } = rule.execActions({
+
+    scheduleAmount = Math.round(scheduleAmount);
+
+    const next_date_string = getNextDate(
+      dateConditions,
+      monthUtils._parse(current_month),
+    );
+
+    // Schedule templates call rule.execActions() on the rule attached to each
+    // schedule, so we prefetch balances and pass _balanceOfPrefetched here too.
+    // Without that, BALANCE_OF would behave wrong or always look empty for
+    // schedule rules.
+    const formulaStrings = collectFormulasFromActions(rule.actions);
+
+    // Use the schedule's next occurrence date so "balance as of this moment"
+    // matches the scheduled date; id/sort_order are unset so we don't exclude a
+    // non-existent transaction from the balance query.
+    const scheduleRuleContext: TransactionEntity = {
       amount: scheduleAmount,
       category: category.id,
       subtransactions: [],
+      ...(next_date_string ? { date: next_date_string } : {}),
+      id: null,
+      sort_order: null,
+    } as TransactionEntity;
+
+    const balanceOfPrefetched = await prefetchBalanceOfForTransaction(
+      scheduleRuleContext,
+      accountsMap,
+      formulaStrings,
+    );
+
+    const { amount: postRuleAmount, subtransactions } = rule.execActions({
+      ...scheduleRuleContext,
+      _balanceOfPrefetched: balanceOfPrefetched,
     });
     const categorySubtransactions = subtransactions?.filter(
       t => t.category === category.id,
@@ -73,10 +123,6 @@ async function createScheduleList(
         ? categorySubtransactions.reduce((acc, t) => acc + t.amount, 0)
         : (postRuleAmount ?? scheduleAmount));
 
-    const next_date_string = getNextDate(
-      dateConditions,
-      monthUtils._parse(current_month),
-    );
     const target_interval = dateConditions.value.interval
       ? dateConditions.value.interval
       : 1;
@@ -238,6 +284,8 @@ function getSinkingBaseContributionTotal(t: ScheduleTemplateTarget[]) {
         monthlyAmount = schedule.target / intervalMonths;
         break;
       default:
+        // default to same math as monthly for now for non-reoccuring
+        monthlyAmount = schedule.target / schedule.target_interval;
         break;
     }
     total += monthlyAmount;
@@ -263,6 +311,7 @@ export async function runSchedule(
   to_budget: number,
   errors: string[],
   category: CategoryEntity,
+  currency: Currency,
 ) {
   const scheduleTemplates = template_lines.filter(t => t.type === 'schedule');
 
@@ -270,22 +319,27 @@ export async function runSchedule(
     scheduleTemplates,
     current_month,
     category,
+    currency,
   );
   errors = errors.concat(t.errors);
 
   const isPayMonthOf = c =>
     c.full ||
-    (c.target_frequency === 'monthly' &&
+    ((c.target_frequency === 'monthly' || !c.target_frequency) &&
       c.target_interval === 1 &&
       c.num_months === 0) ||
     (c.target_frequency === 'weekly' && c.target_interval <= 4) ||
     (c.target_frequency === 'daily' && c.target_interval <= 31) ||
-    isReflectBudget();
+    isTrackingBudget();
+
+  const isSubMonthly = c =>
+    c.target_frequency === 'weekly' || c.target_frequency === 'daily';
 
   const t_payMonthOf = t.t.filter(isPayMonthOf);
   const t_sinking = t.t
     .filter(c => !isPayMonthOf(c))
     .sort((a, b) => a.next_date_string.localeCompare(b.next_date_string));
+  const numSubMonthly = t.t.filter(isSubMonthly).length;
   const totalPayMonthOf = getPayMonthOfTotal(t_payMonthOf);
   const totalSinking = getSinkingTotal(t_sinking);
   const totalSinkingBaseContribution =
@@ -303,7 +357,8 @@ export async function runSchedule(
     balance >= totalSinking + totalPayMonthOf ||
     (lastMonthGoal < totalSinking + totalPayMonthOf &&
       lastMonthGoal !== 0 &&
-      balance >= lastMonthGoal)
+      balance >= lastMonthGoal &&
+      numSubMonthly > 0)
   ) {
     to_budget += Math.round(totalPayMonthOf + totalSinkingBaseContribution);
   } else {

@@ -1,4 +1,5 @@
-import React, { type ComponentProps, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SvgDownAndRightArrow } from '@actual-app/components/icons/v2';
@@ -7,21 +8,15 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import { amountToCurrency } from '@actual-app/core/shared/util';
+import type { CategoryEntity } from '@actual-app/core/types/models';
 
-import { amountToCurrency } from 'loot-core/shared/util';
-import { type CategoryEntity } from 'loot-core/types/models';
+import { Checkbox } from '#components/forms';
+import { Field, Row } from '#components/table';
 
 import { ParsedDate } from './ParsedDate';
-import {
-  applyFieldMappings,
-  type FieldMapping,
-  formatDate,
-  type ImportTransaction,
-  parseAmountFields,
-} from './utils';
-
-import { Checkbox } from '@desktop-client/components/forms';
-import { Row, Field } from '@desktop-client/components/table';
+import { applyFieldMappings, formatDate, parseAmountFields } from './utils';
+import type { FieldMapping, ImportTransaction } from './utils';
 
 type TransactionProps = {
   transaction: ImportTransaction;

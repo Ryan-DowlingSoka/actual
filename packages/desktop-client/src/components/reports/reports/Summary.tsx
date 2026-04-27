@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, type CSSProperties } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 
@@ -13,52 +14,48 @@ import {
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  SummaryContent,
+  SummaryWidget,
+  TimeFrame,
+} from '@actual-app/core/types/models';
 import { parseISO } from 'date-fns';
 
-import { send } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type SummaryContent,
-  type SummaryWidget,
-  type TimeFrame,
-} from 'loot-core/types/models';
-
-import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
-import { AppliedFilters } from '@desktop-client/components/filters/AppliedFilters';
-import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
-import { Checkbox } from '@desktop-client/components/forms';
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import {
-  MobilePageHeader,
-  Page,
-  PageHeader,
-} from '@desktop-client/components/Page';
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { chartTheme } from '@desktop-client/components/reports/chart-theme';
-import { Header } from '@desktop-client/components/reports/Header';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { summarySpreadsheet } from '@desktop-client/components/reports/spreadsheets/summary-spreadsheet';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { fromDateRepr } from '@desktop-client/components/reports/util';
-import { FieldSelect } from '@desktop-client/components/rules/RuleEditor';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { useWidget } from '@desktop-client/hooks/useWidget';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { EditablePageHeaderTitle } from '#components/EditablePageHeaderTitle';
+import { AppliedFilters } from '#components/filters/AppliedFilters';
+import { FilterButton } from '#components/filters/FiltersMenu';
+import { FinancialText } from '#components/FinancialText';
+import { Checkbox } from '#components/forms';
+import { MobileBackButton } from '#components/mobile/MobileBackButton';
+import { MobilePageHeader, Page, PageHeader } from '#components/Page';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { Header } from '#components/reports/Header';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { summarySpreadsheet } from '#components/reports/spreadsheets/summary-spreadsheet';
+import { useReport } from '#components/reports/useReport';
+import { fromDateRepr } from '#components/reports/util';
+import { FieldSelect } from '#components/rules/RuleEditor';
+import { useDashboardWidget } from '#hooks/useDashboardWidget';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
+import { useNavigate } from '#hooks/useNavigate';
+import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
 
 export function Summary() {
   const params = useParams();
-  const { data: widget, isLoading } = useWidget<SummaryWidget>(
-    params.id ?? '',
-    'summary-card',
-  );
+  const { data: widget, isPending } = useDashboardWidget<SummaryWidget>({
+    id: params.id,
+    type: 'summary-card',
+  });
 
-  if (isLoading) {
+  if (isPending) {
     return <LoadingIndicator />;
   }
 
@@ -202,13 +199,13 @@ function SummaryInner({ widget }: SummaryInnerProps) {
         .rangeInclusive(earliestMonth, latestMonth)
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy', locale),
+          pretty: monthUtils.format(month, 'MMMM yyyy', locale),
         }))
         .reverse();
 
       setAllMonths(allMonths);
     }
-    run();
+    void run();
   }, [locale]);
 
   useEffect(() => {
@@ -233,6 +230,8 @@ function SummaryInner({ widget }: SummaryInnerProps) {
   const { isNarrowWidth } = useResponsive();
   const title = widget?.meta?.name || t('Summary');
 
+  const updateDashboardWidgetMutation = useUpdateDashboardWidgetMutation();
+
   const onSaveWidgetName = async (newName: string) => {
     if (!widget) {
       dispatch(
@@ -247,12 +246,14 @@ function SummaryInner({ widget }: SummaryInnerProps) {
     }
 
     const name = newName || t('Summary');
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        name,
-        content: JSON.stringify(content),
+    updateDashboardWidgetMutation.mutate({
+      widget: {
+        id: widget.id,
+        meta: {
+          ...(widget.meta ?? {}),
+          name,
+          content: JSON.stringify(content),
+        },
       },
     });
   };
@@ -275,27 +276,36 @@ function SummaryInner({ widget }: SummaryInnerProps) {
       );
       return;
     }
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        conditions: dividendFilters.conditions,
-        conditionsOp: dividendFilters.conditionsOp,
-        timeFrame: {
-          start,
-          end,
-          mode,
+
+    updateDashboardWidgetMutation.mutate(
+      {
+        widget: {
+          id: widget.id,
+          meta: {
+            ...(widget.meta ?? {}),
+            conditions: dividendFilters.conditions,
+            conditionsOp: dividendFilters.conditionsOp,
+            timeFrame: {
+              start,
+              end,
+              mode,
+            },
+            content: JSON.stringify(content),
+          },
         },
-        content: JSON.stringify(content),
       },
-    });
-    dispatch(
-      addNotification({
-        notification: {
-          type: 'message',
-          message: t('Dashboard widget successfully saved.'),
+      {
+        onSuccess: () => {
+          dispatch(
+            addNotification({
+              notification: {
+                type: 'message',
+                message: t('Dashboard widget successfully saved.'),
+              },
+            }),
+          );
         },
-      }),
+      },
     );
   }
 
@@ -458,7 +468,9 @@ function SummaryInner({ widget }: SummaryInnerProps) {
                   }}
                 >
                   <PrivacyFilter>
-                    {format(data?.dividend ?? 0, 'financial')}
+                    <FinancialText>
+                      {format(data?.dividend ?? 0, 'financial')}
+                    </FinancialText>
                   </PrivacyFilter>
                 </Text>
                 <div
@@ -497,9 +509,11 @@ function SummaryInner({ widget }: SummaryInnerProps) {
               fontSize: '50px',
               justifyContent: 'center',
               color:
-                (data?.total ?? 0) < 0
-                  ? chartTheme.colors.red
-                  : chartTheme.colors.blue,
+                (data?.total ?? 0) === 0
+                  ? theme.reportsNumberNeutral
+                  : (data?.total ?? 0) < 0
+                    ? theme.reportsNumberNegative
+                    : theme.reportsNumberPositive,
             }}
           >
             <PrivacyFilter>

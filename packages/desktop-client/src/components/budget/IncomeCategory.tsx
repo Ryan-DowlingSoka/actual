@@ -1,22 +1,18 @@
 // @ts-strict-ignore
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 
-import { type CategoryEntity } from 'loot-core/types/models';
+import type { CategoryEntity } from '@actual-app/core/types/models';
+
+import { DropHighlight, useDraggable, useDroppable } from '#components/sort';
+import type { OnDragChangeCallback, OnDropCallback } from '#components/sort';
+import { Row } from '#components/table';
+import { useDragRef } from '#hooks/useDragRef';
 
 import { RenderMonths } from './RenderMonths';
 import { SidebarCategory } from './SidebarCategory';
 
 import { useBudgetComponents } from '.';
-
-import {
-  useDraggable,
-  useDroppable,
-  DropHighlight,
-  type OnDragChangeCallback,
-  type OnDropCallback,
-} from '@desktop-client/components/sort';
-import { Row } from '@desktop-client/components/table';
-import { useDragRef } from '@desktop-client/hooks/useDragRef';
 
 type IncomeCategoryProps = {
   cat: CategoryEntity;

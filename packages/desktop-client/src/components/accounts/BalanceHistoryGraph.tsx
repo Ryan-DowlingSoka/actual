@@ -1,29 +1,23 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  type CSSProperties,
-  type Ref,
-} from 'react';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties, Ref } from 'react';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-import { subMonths, format, eachMonthOfInterval } from 'date-fns';
-import { AreaChart, Area, YAxis, Tooltip as RechartsTooltip } from 'recharts';
+import * as monthUtils from '@actual-app/core/shared/months';
+import { integerToCurrency } from '@actual-app/core/shared/util';
+import { eachMonthOfInterval, format, subMonths } from 'date-fns';
+import { Area, AreaChart, Tooltip as RechartsTooltip, YAxis } from 'recharts';
 
-import * as monthUtils from 'loot-core/shared/months';
-import { integerToCurrency } from 'loot-core/shared/util';
-
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { useRechartsAnimation } from '@desktop-client/components/reports/chart-theme';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import * as query from '@desktop-client/queries';
-import { liveQuery } from '@desktop-client/queries/liveQuery';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { useRechartsAnimation } from '#components/reports/chart-theme';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { useLocale } from '#hooks/useLocale';
+import * as query from '#queries';
+import { liveQuery } from '#queries/liveQuery';
 
 const LABEL_WIDTH = 70;
 
@@ -208,8 +202,12 @@ export function BalanceHistoryGraph({
 
   return (
     <View ref={ref} style={{ margin: 10, ...style }}>
-      <AutoSizer>
-        {({ width, height }: { width: number; height: number }) => {
+      <AutoSizer
+        renderProp={({ width = 0, height = 0 }) => {
+          if (width === 0 || height === 0) {
+            return null;
+          }
+
           if (loading) {
             return (
               <div style={{ width, height }}>
@@ -326,7 +324,7 @@ export function BalanceHistoryGraph({
             </View>
           );
         }}
-      </AutoSizer>
+      />
     </View>
   );
 }

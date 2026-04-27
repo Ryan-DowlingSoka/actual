@@ -1,13 +1,14 @@
-import React, { type ReactNode } from 'react';
+import React from 'react';
+import type { ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { View } from '@actual-app/components/view';
 
-import { UserDirectory } from './UserDirectory';
+import { Page } from '#components/Page';
+import { useNavigate } from '#hooks/useNavigate';
 
-import { Page } from '@desktop-client/components/Page';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
+import { UserDirectory } from './UserDirectory';
 
 export function UserDirectoryPage({
   bottomContent,

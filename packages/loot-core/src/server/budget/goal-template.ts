@@ -1,18 +1,36 @@
+import { aqlQuery } from '#server/aql';
+import * as db from '#server/db';
+import { batchMessages } from '#server/sync';
 // @ts-strict-ignore
-import * as monthUtils from '../../shared/months';
-import { q } from '../../shared/query';
-import {
-  type CategoryEntity,
-  type CategoryGroupEntity,
-} from '../../types/models';
-import { type Template } from '../../types/models/templates';
-import { aqlQuery } from '../aql';
-import * as db from '../db';
-import { batchMessages } from '../sync';
+import * as monthUtils from '#shared/months';
+import { q } from '#shared/query';
+import type { CategoryEntity, CategoryGroupEntity } from '#types/models';
+import type { Template } from '#types/models/templates';
 
-import { isReflectBudget, getSheetValue, setGoal, setBudget } from './actions';
+import { getSheetValue, isTrackingBudget, setBudget, setGoal } from './actions';
 import { CategoryTemplateContext } from './category-template-context';
 import { checkTemplateNotes, storeNoteTemplates } from './template-notes';
+
+export function distributeRemainder(
+  templateContexts: CategoryTemplateContext[],
+  availBudget: number,
+): number {
+  let remainderContexts = templateContexts.filter(c => c.hasRemainder());
+  while (availBudget > 0 && remainderContexts.length > 0) {
+    let remainderWeight = 0;
+    remainderContexts.forEach(
+      context => (remainderWeight += context.getRemainderWeight()),
+    );
+    const perWeight = availBudget / remainderWeight;
+    const beforePass = availBudget;
+    remainderContexts.forEach(context => {
+      availBudget -= context.runRemainder(availBudget, perWeight);
+    });
+    if (availBudget === beforePass) break;
+    remainderContexts = templateContexts.filter(c => c.hasRemainder());
+  }
+  return availBudget;
+}
 
 type Notification = {
   type?: 'message' | 'error' | 'warning' | undefined;
@@ -156,7 +174,7 @@ type TemplateBudget = {
 async function setBudgets(month: string, templateBudget: TemplateBudget[]) {
   await batchMessages(async () => {
     templateBudget.forEach(element => {
-      setBudget({
+      void setBudget({
         category: element.category,
         month,
         amount: element.budgeted,
@@ -174,7 +192,7 @@ type TemplateGoal = {
 async function setGoals(month: string, templateGoal: TemplateGoal[]) {
   await batchMessages(async () => {
     templateGoal.forEach(element => {
-      setGoal({
+      void setGoal({
         month,
         category: element.category,
         goal: element.goal,
@@ -191,9 +209,11 @@ async function processTemplate(
   categories: CategoryEntity[] = [],
 ): Promise<Notification> {
   // setup categories
-  const isReflect = isReflectBudget();
+  const isTracking = isTrackingBudget();
   if (!categories.length) {
-    categories = (await getCategories()).filter(c => isReflect || !c.is_income);
+    categories = (await getCategories()).filter(
+      c => isTracking || !c.is_income,
+    );
   }
 
   // setup categories to process
@@ -246,7 +266,7 @@ async function processTemplate(
   //break early if nothing to do, or there are errors
   if (templateContexts.length === 0 && errors.length === 0) {
     if (goalList.length > 0) {
-      setGoals(month, goalList);
+      void setGoals(month, goalList);
     }
     return {
       type: 'message',
@@ -261,7 +281,7 @@ async function processTemplate(
     };
   }
 
-  const priorities = new Int32Array([...prioritiesSet]).sort();
+  const priorities = new Int32Array([...prioritiesSet]).sort((a, b) => a - b);
   // run each priority level
   for (const priority of priorities) {
     const availStart = availBudget;
@@ -276,18 +296,7 @@ async function processTemplate(
   }
 
   // run remainder
-  let remainderContexts = templateContexts.filter(c => c.hasRemainder());
-  while (availBudget > 0 && remainderContexts.length > 0) {
-    let remainderWeight = 0;
-    remainderContexts.forEach(
-      context => (remainderWeight += context.getRemainderWeight()),
-    );
-    const perWeight = availBudget / remainderWeight;
-    remainderContexts.forEach(context => {
-      availBudget -= context.runRemainder(availBudget, perWeight);
-    });
-    remainderContexts = templateContexts.filter(c => c.hasRemainder());
-  }
+  availBudget = distributeRemainder(templateContexts, availBudget);
 
   // finish
   templateContexts.forEach(context => {

@@ -1,9 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { type PayeeEntity } from 'loot-core/types/models';
+import type { PayeeEntity } from '@actual-app/core/types/models';
 
-import { PayeeAutocomplete } from '@desktop-client/components/autocomplete/PayeeAutocomplete';
+import { PayeeAutocomplete } from '#components/autocomplete/PayeeAutocomplete';
 
 type PayeeFilterValue = PayeeEntity['id'] | PayeeEntity['id'][];
 
@@ -32,7 +32,7 @@ export const PayeeFilter = ({ value, op, onChange }: PayeeFilterProps) => {
   const { t } = useTranslation();
   const multi = ['oneOf', 'notOneOf'].includes(op);
 
-  let coercedValue: PayeeFilterValue = value;
+  let coercedValue: PayeeFilterValue;
   if (multi) {
     coercedValue = Array.isArray(value) ? value : [];
   } else {
@@ -43,7 +43,7 @@ export const PayeeFilter = ({ value, op, onChange }: PayeeFilterProps) => {
     multi && coercedValue.length > 0 ? undefined : t('nothing');
 
   return (
-    // @ts-ignore: typing is not playing nicely with the union type of AutocompleteProps.
+    // @ts-expect-error: typing is not playing nicely with the union type of AutocompleteProps.
     <PayeeAutocomplete
       type={multi ? 'multi' : 'single'}
       showInactivePayees

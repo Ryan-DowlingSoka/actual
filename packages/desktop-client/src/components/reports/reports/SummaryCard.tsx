@@ -1,24 +1,24 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  SummaryContent,
+  SummaryWidget,
+} from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type SummaryContent,
-  type SummaryWidget,
-} from 'loot-core/types/models';
-
-import { DateRange } from '@desktop-client/components/reports/DateRange';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { ReportCard } from '@desktop-client/components/reports/ReportCard';
-import { ReportCardName } from '@desktop-client/components/reports/ReportCardName';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { summarySpreadsheet } from '@desktop-client/components/reports/spreadsheets/summary-spreadsheet';
-import { SummaryNumber } from '@desktop-client/components/reports/SummaryNumber';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { useLocale } from '@desktop-client/hooks/useLocale';
+import { DateRange } from '#components/reports/DateRange';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { ReportCard } from '#components/reports/ReportCard';
+import { ReportCardName } from '#components/reports/ReportCardName';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { summarySpreadsheet } from '#components/reports/spreadsheets/summary-spreadsheet';
+import { SummaryNumber } from '#components/reports/SummaryNumber';
+import { useDashboardWidgetCopyMenu } from '#components/reports/useDashboardWidgetCopyMenu';
+import { useReport } from '#components/reports/useReport';
+import { useLocale } from '#hooks/useLocale';
 
 type SummaryCardProps = {
   widgetId: string;
@@ -26,6 +26,7 @@ type SummaryCardProps = {
   meta?: SummaryWidget['meta'];
   onMetaChange: (newMeta: SummaryWidget['meta']) => void;
   onRemove: () => void;
+  onCopy: (targetDashboardId: string) => void;
 };
 
 export function SummaryCard({
@@ -34,11 +35,15 @@ export function SummaryCard({
   meta = {},
   onMetaChange,
   onRemove,
+  onCopy,
 }: SummaryCardProps) {
   const locale = useLocale();
   const { t } = useTranslation();
   const [latestTransaction, setLatestTransaction] = useState<string>('');
   const [nameMenuOpen, setNameMenuOpen] = useState(false);
+
+  const { menuItems: copyMenuItems, handleMenuSelect: handleCopyMenuSelect } =
+    useDashboardWidgetCopyMenu(onCopy);
 
   useEffect(() => {
     async function fetchLatestTransaction() {
@@ -47,7 +52,7 @@ export function SummaryCard({
         latestTrans ? latestTrans.date : monthUtils.currentDay(),
       );
     }
-    fetchLatestTransaction();
+    void fetchLatestTransaction();
   }, []);
 
   const [start, end] = calculateTimeRange(
@@ -104,8 +109,10 @@ export function SummaryCard({
           name: 'remove',
           text: t('Remove'),
         },
+        ...copyMenuItems,
       ]}
       onMenuSelect={item => {
+        if (handleCopyMenuSelect(item)) return;
         switch (item) {
           case 'rename':
             setNameMenuOpen(true);
@@ -114,8 +121,7 @@ export function SummaryCard({
             onRemove();
             break;
           default:
-            console.warn(`Unrecognized menu selection: ${item}`);
-            break;
+            throw new Error(`Unrecognized menu selection: ${item}`);
         }
       }}
     >

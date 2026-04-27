@@ -1,49 +1,50 @@
-import React, { useState, useEffect } from 'react';
-
-import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { format as formatDate, parse as parseDate } from 'date-fns';
-import { v4 as uuidv4 } from 'uuid';
+import React, { useEffect, useState } from 'react';
 
 import {
-  generateTransaction,
   generateAccount,
   generateCategoryGroups,
-} from 'loot-core/mocks';
-import { initServer } from 'loot-core/platform/client/fetch';
+  generateTransaction,
+} from '@actual-app/core/mocks';
+import { initServer } from '@actual-app/core/platform/client/connection';
 import {
   addSplitTransaction,
   realizeTempTransactions,
   splitTransaction,
   updateTransaction,
-} from 'loot-core/shared/transactions';
-import { integerToCurrency } from 'loot-core/shared/util';
-import {
-  type AccountEntity,
-  type CategoryEntity,
-  type CategoryGroupEntity,
-  type PayeeEntity,
-  type TransactionEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/shared/transactions';
+import { integerToCurrency } from '@actual-app/core/shared/util';
+import type {
+  AccountEntity,
+  CategoryEntity,
+  CategoryGroupEntity,
+  PayeeEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
+import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { format as formatDate, parse as parseDate } from 'date-fns';
+
+import { AuthProvider } from '#auth/AuthProvider';
+import { SchedulesProvider } from '#hooks/useCachedSchedules';
+import { SelectedProviderWithItems } from '#hooks/useSelected';
+import { SplitsExpandedProvider } from '#hooks/useSplitsExpanded';
+import { SpreadsheetProvider } from '#hooks/useSpreadsheet';
+import { createTestQueryClient, TestProviders } from '#mocks';
+import { payeeQueries } from '#payees';
 
 import { TransactionTable } from './TransactionsTable';
 
-import { AuthProvider } from '@desktop-client/auth/AuthProvider';
-import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
-import { SelectedProviderWithItems } from '@desktop-client/hooks/useSelected';
-import { SplitsExpandedProvider } from '@desktop-client/hooks/useSplitsExpanded';
-import { SpreadsheetProvider } from '@desktop-client/hooks/useSpreadsheet';
-import { TestProvider } from '@desktop-client/redux/mock';
+const queryClient = createTestQueryClient();
 
-vi.mock('loot-core/platform/client/fetch');
-vi.mock('../../hooks/useFeatureFlag', () => ({
-  default: vi.fn().mockReturnValue(false),
-}));
+vi.mock(
+  '@actual-app/core/platform/client/connection',
+  () => import('#mocks/connection'),
+);
 vi.mock('../../hooks/useSyncedPref', () => ({
   useSyncedPref: vi.fn().mockReturnValue([undefined, vi.fn()]),
 }));
 vi.mock('../../hooks/useFeatureFlag', () => ({
-  useFeatureFlag: () => false,
+  useFeatureFlag: vi.fn(() => false),
 }));
 
 const accounts = [generateAccount('Bank of America')];
@@ -68,22 +69,7 @@ const payees: PayeeEntity[] = [
     name: 'This guy on the side of the road',
   },
 ];
-vi.mock('../../hooks/usePayees', async importOriginal => {
-  const actual =
-    // oxlint-disable-next-line typescript/consistent-type-imports
-    await importOriginal<typeof import('../../hooks/usePayees')>();
-  return {
-    ...actual,
-    usePayees: () => payees,
-    usePayeesById: () => {
-      const payeesById: Record<string, PayeeEntity> = {};
-      payees.forEach(payee => {
-        payeesById[payee.id] = payee;
-      });
-      return payeesById;
-    },
-  };
-});
+queryClient.setQueryData(payeeQueries.list().queryKey, payees);
 
 const categoryGroups = generateCategoryGroups([
   {
@@ -195,7 +181,7 @@ function LiveTransactionTable(props: LiveTransactionTableProps) {
   // implementation properly uses the right latest state even if the
   // hook dependencies haven't changed
   return (
-    <TestProvider>
+    <TestProviders queryClient={queryClient}>
       <AuthProvider>
         <SpreadsheetProvider>
           <SchedulesProvider>
@@ -209,7 +195,7 @@ function LiveTransactionTable(props: LiveTransactionTableProps) {
                   {...props}
                   transactions={transactions}
                   loadMoreTransactions={vi.fn()}
-                  // @ts-ignore TODO:
+                  // @ts-expect-error TODO: fix me
                   commonPayees={[]}
                   payees={payees}
                   addNotification={console.log}
@@ -226,7 +212,7 @@ function LiveTransactionTable(props: LiveTransactionTableProps) {
           </SchedulesProvider>
         </SpreadsheetProvider>
       </AuthProvider>
-    </TestProvider>
+    </TestProviders>
   );
 }
 
@@ -412,7 +398,7 @@ expect.extend({
     } else {
       return {
         message: () =>
-          `Expected ${validPayeeListWithFavorite} to have favorite stars`,
+          `Expected ${String(validPayeeListWithFavorite)} to have favorite stars`,
         pass: true,
       };
     }
@@ -460,7 +446,7 @@ describe('Transactions', () => {
               ?.name
           : 'Categorize',
       );
-      if (transaction.amount <= 0) {
+      if (transaction.amount < 0) {
         expect(queryField(container, 'debit', 'div', idx).textContent).toBe(
           integerToCurrency(-transaction.amount),
         );
@@ -555,7 +541,7 @@ describe('Transactions', () => {
       '{Shift>}[Enter]{/Shift}',
     ];
 
-    for (const idx in ks) {
+    for (const [idx] of ks.entries()) {
       const input = await editField(container, 'notes', 2);
       const oldValue = input.value;
       await userEvent.clear(input);
@@ -928,18 +914,12 @@ describe('Transactions', () => {
     let input = expectToBeEditingField(container, 'date', 0, true);
     await userEvent.type(input, '[Tab]');
     input = expectToBeEditingField(container, 'account', 0, true);
-    // The first escape closes the dropdown
+
+    await userEvent.type(input, '[Escape]');
     await userEvent.type(input, '[Escape]');
     expect(
       container.querySelector('[data-testid="new-transaction"]'),
-    ).toBeTruthy();
-
-    // TODO: Fix this
-    // Now it should close the new transaction form
-    // await userEvent.type(input, '[Escape]');
-    // expect(
-    //   container.querySelector('[data-testid="new-transaction"]')
-    // ).toBeNull();
+    ).toBeNull();
 
     // The cancel button should also close the new transaction form
     updateProps({ isAdding: true });
@@ -978,6 +958,69 @@ describe('Transactions', () => {
     expect(getTransactions().length).toBe(6);
     expect(getTransactions()[0].amount).toBe(-5000);
     expect(getTransactions()[0].notes).toBe('test transaction');
+
+    expect(container.querySelector('[data-testid="new-transaction"]')).toBe(
+      null,
+    );
+  });
+
+  test('ctrl/cmd+enter saves amount value when pressed immediately after typing', async () => {
+    // Regression test for issue #6901: Ctrl+Enter should wait for the amount
+    // field value to be committed before adding the transaction
+    const { container, getTransactions, updateProps } = renderTransactions({
+      onCloseAddTransaction: () => {
+        updateProps({ isAdding: false });
+      },
+    });
+
+    expect(getTransactions().length).toBe(5);
+    updateProps({ isAdding: true });
+
+    // Type in notes field
+    let input = await editNewField(container, 'notes');
+    await userEvent.clear(input);
+    await userEvent.type(input, 'quick entry test');
+
+    // Type amount and immediately press Ctrl+Enter without tabbing away
+    input = await editNewField(container, 'debit');
+    await userEvent.clear(input);
+    await userEvent.type(input, '150.75');
+
+    // Press Ctrl+Enter immediately while still in the debit field
+    await userEvent.keyboard('{Control>}{Enter}{/Control}');
+
+    // The transaction should be added with the correct amount, not zero
+    expect(getTransactions().length).toBe(6);
+    expect(getTransactions()[0].amount).toBe(-15075); // 150.75 in cents
+    expect(getTransactions()[0].notes).toBe('quick entry test');
+
+    // Form should be closed
+    expect(container.querySelector('[data-testid="new-transaction"]')).toBe(
+      null,
+    );
+  });
+
+  test('ctrl/cmd+enter saves credit amount when pressed immediately after typing', async () => {
+    // Test the same fix for credit field (issue #6901)
+    const { container, getTransactions, updateProps } = renderTransactions({
+      onCloseAddTransaction: () => {
+        updateProps({ isAdding: false });
+      },
+    });
+
+    expect(getTransactions().length).toBe(5);
+    updateProps({ isAdding: true });
+
+    // Type amount in credit field and immediately press Ctrl+Enter
+    const input = await editNewField(container, 'credit');
+    await userEvent.clear(input);
+    await userEvent.type(input, '99.99');
+
+    await userEvent.keyboard('{Control>}{Enter}{/Control}');
+
+    // The transaction should be added with the correct positive amount
+    expect(getTransactions().length).toBe(6);
+    expect(getTransactions()[0].amount).toBe(9999); // 99.99 in cents
 
     expect(container.querySelector('[data-testid="new-transaction"]')).toBe(
       null,
@@ -1043,7 +1086,7 @@ describe('Transactions', () => {
     // Change the id to simulate a new transaction being added, and
     // work with that one. This makes sure that the transaction table
     // properly references new data.
-    transactions[0] = { ...transactions[0], id: uuidv4() };
+    transactions[0] = { ...transactions[0], id: crypto.randomUUID() };
     updateProps({ transactions });
 
     function expectErrorToNotExist(transactions: TransactionEntity[]) {
@@ -1062,7 +1105,7 @@ describe('Transactions', () => {
       });
     }
 
-    let input = await editField(container, 'category', 0);
+    await editField(container, 'category', 0);
 
     // Make it clear that we are expected a negative transaction
     expect(getTransactions()[0].amount).toBe(-2777);
@@ -1086,7 +1129,7 @@ describe('Transactions', () => {
 
     // Enter an amount for the new split transaction and make sure the
     // toolbar updates
-    input = await editField(container, 'debit', 1);
+    let input = await editField(container, 'debit', 1);
     await userEvent.clear(input);
     await userEvent.type(input, '10.00[tab]');
     expect(toolbar.innerHTML.includes('17.77')).toBeTruthy();
@@ -1124,6 +1167,7 @@ describe('Transactions', () => {
         is_parent: true,
         notes: 'Notes',
         payee: 'alice-id',
+        reconciled: false,
         sort_order: 0,
       },
       {
@@ -1137,7 +1181,7 @@ describe('Transactions', () => {
         is_child: true,
         parent_id: parentId,
         payee: 'alice-id',
-        reconciled: undefined,
+        reconciled: false,
         sort_order: -1,
         starting_balance_flag: null,
       },
@@ -1152,7 +1196,7 @@ describe('Transactions', () => {
         is_child: true,
         parent_id: parentId,
         payee: 'alice-id',
-        reconciled: undefined,
+        reconciled: false,
         sort_order: -2,
         starting_balance_flag: null,
       },
@@ -1179,7 +1223,7 @@ describe('Transactions', () => {
   test('transaction with splits shows 0 in correct column', async () => {
     const { container, getTransactions } = renderTransactions();
 
-    let input = await editField(container, 'category', 0);
+    await editField(container, 'category', 0);
 
     // The first transaction should always be a negative amount
     expect(getTransactions()[0].amount).toBe(-2777);
@@ -1198,7 +1242,7 @@ describe('Transactions', () => {
     expect(queryField(container, 'credit', '', 2).textContent).toBe('');
 
     // Change it to a credit transaction
-    input = await editField(container, 'credit', 0);
+    const input = await editField(container, 'credit', 0);
     await userEvent.type(input, '55.00{Tab}');
 
     // The zeros should now display in the credit column

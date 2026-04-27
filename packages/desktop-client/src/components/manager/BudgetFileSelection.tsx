@@ -1,11 +1,5 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  type CSSProperties,
-  useCallback,
-  type ComponentPropsWithoutRef,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties } from 'react';
 import { GridList, GridListItem } from 'react-aria-components';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -34,19 +28,18 @@ import { theme } from '@actual-app/components/theme';
 import { tokens } from '@actual-app/components/tokens';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
-import { css } from '@emotion/css';
-
 import {
   isElectron,
   isNonProductionEnvironment,
-} from 'loot-core/shared/environment';
-import {
-  type RemoteFile,
-  type File,
-  type LocalFile,
-  type SyncableLocalFile,
-  type SyncedLocalFile,
-} from 'loot-core/types/file';
+} from '@actual-app/core/shared/environment';
+import type {
+  File,
+  LocalFile,
+  RemoteFile,
+  SyncableLocalFile,
+  SyncedLocalFile,
+} from '@actual-app/core/types/file';
+import { css } from '@emotion/css';
 
 import {
   closeAndDownloadBudget,
@@ -55,14 +48,14 @@ import {
   downloadBudget,
   loadAllFiles,
   loadBudget,
-} from '@desktop-client/budgetfiles/budgetfilesSlice';
-import { useMultiuserEnabled } from '@desktop-client/components/ServerContext';
-import { useInitialMount } from '@desktop-client/hooks/useInitialMount';
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useSelector, useDispatch } from '@desktop-client/redux';
-import { getUserData } from '@desktop-client/users/usersSlice';
+} from '#budgetfiles/budgetfilesSlice';
+import { useMultiuserEnabled } from '#components/ServerContext';
+import { useInitialMount } from '#hooks/useInitialMount';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch, useSelector } from '#redux';
+import { getUserData } from '#users/usersSlice';
 
 function getFileDescription(file: File, t: (key: string) => string) {
   if (file.state === 'unknown') {
@@ -209,10 +202,9 @@ function BudgetFileState({ file, currentUserId }: BudgetFileStateProps) {
       ownerName = t('You');
       break;
     case 'broken':
-      ownerName = 'unknown';
       Icon = SvgFileDouble;
       status = t('Local');
-      ownerName = t('You');
+      ownerName = t('Unknown');
       break;
     default:
       Icon = SvgCloudCheck;
@@ -276,7 +268,7 @@ type BudgetFileListItemProps = ComponentPropsWithoutRef<
   typeof GridListItem<File>
 > & {
   quickSwitchMode: boolean;
-  onSelect: (file: File) => void;
+  onSelect: (file: File) => Promise<void>;
   onDelete: (file: File) => void;
   onDuplicate: (file: File) => void;
   currentUserId: string;
@@ -385,7 +377,7 @@ function BudgetFileListItem({
 type BudgetFileListProps = {
   files: File[];
   quickSwitchMode: boolean;
-  onSelect: (file: File) => void;
+  onSelect: (file: File) => Promise<void>;
   onDelete: (file: File) => void;
   onDuplicate: (file: File) => void;
   currentUserId: string;
@@ -453,7 +445,7 @@ function RefreshButton({ style, onRefresh }: RefreshButtonProps) {
 
   async function _onRefresh() {
     setLoading(true);
-    await onRefresh();
+    onRefresh();
     setLoading(false);
   }
 
@@ -562,7 +554,7 @@ export function BudgetFileSelection({
 
   useEffect(() => {
     if (multiuserEnabled && !userData?.offline) {
-      fetchUsers();
+      void fetchUsers();
     }
   }, [multiuserEnabled, userData?.offline, fetchUsers]);
 
@@ -589,13 +581,13 @@ export function BudgetFileSelection({
   const onCreate = ({ testMode = false } = {}) => {
     if (!creating) {
       setCreating(true);
-      dispatch(createBudget({ testMode }));
+      void dispatch(createBudget({ testMode }));
     }
   };
 
   const refresh = () => {
-    dispatch(getUserData());
-    dispatch(loadAllFiles());
+    void dispatch(getUserData());
+    void dispatch(loadAllFiles());
   };
 
   const initialMount = useInitialMount();

@@ -1,46 +1,47 @@
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
   SvgCalculator,
+  SvgCamera,
   SvgChart,
+  SvgChartArea,
   SvgChartBar,
   SvgChartPie,
   SvgListBullet,
   SvgQueue,
   SvgTag,
-  SvgCamera,
-  SvgChartArea,
 } from '@actual-app/components/icons/v1';
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  CustomReportEntity,
+  RuleConditionEntity,
+} from '@actual-app/core/types/models';
 import { toPng } from 'html-to-image';
 
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type CustomReportEntity,
-  type RuleConditionEntity,
-} from 'loot-core/types/models';
+import { FilterButton } from '#components/filters/FiltersMenu';
 
 import { GraphButton } from './GraphButton';
-import { SaveReport } from './SaveReport';
+import { SaveReportWrapper } from './SaveReport';
+import type { SavedStatus } from './SaveReportMenu';
 import { setSessionReport } from './setSessionReport';
 import { SnapshotButton } from './SnapshotButton';
-
-import { FilterButton } from '@desktop-client/components/filters/FiltersMenu';
 
 type ReportTopbarProps = {
   customReportItems: CustomReportEntity;
   report: CustomReportEntity;
-  savedStatus: string;
+  savedStatus: SavedStatus;
   setGraphType: (value: string) => void;
   viewLegend: boolean;
   viewSummary: boolean;
   viewLabels: boolean;
   onApplyFilter: (newFilter: RuleConditionEntity) => void;
   onChangeViews: (viewType: string) => void;
-  onReportChange: ComponentProps<typeof SaveReport>['onReportChange'];
+  onReportChange: ComponentProps<typeof SaveReportWrapper>['onReportChange'];
   isItemDisabled: (type: string) => boolean;
   defaultItems: (item: string) => void;
 };
@@ -241,9 +242,23 @@ export function ReportTopbar({
             onApplyFilter(e);
             onReportChange({ type: 'modify' });
           }}
-          exclude={[]}
+          exclude={
+            customReportItems.balanceType === 'Budgeted'
+              ? [
+                  'date',
+                  'account',
+                  'payee',
+                  'notes',
+                  'amount',
+                  'cleared',
+                  'reconciled',
+                  'transfer',
+                  'saved',
+                ]
+              : []
+          }
         />
-        <SaveReport
+        <SaveReportWrapper
           customReportItems={customReportItems}
           report={report}
           savedStatus={savedStatus}

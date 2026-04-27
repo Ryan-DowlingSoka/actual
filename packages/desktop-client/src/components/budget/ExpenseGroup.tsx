@@ -1,29 +1,27 @@
 // @ts-strict-ignore
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
+} from '@actual-app/core/types/models';
 
-import {
-  type CategoryEntity,
-  type CategoryGroupEntity,
-} from 'loot-core/types/models';
+import { DropHighlight, useDraggable, useDroppable } from '#components/sort';
+import type {
+  DragState,
+  OnDragChangeCallback,
+  OnDropCallback,
+} from '#components/sort';
+import { Row, ROW_HEIGHT } from '#components/table';
+import { useDragRef } from '#hooks/useDragRef';
 
 import { RenderMonths } from './RenderMonths';
 import { SidebarGroup } from './SidebarGroup';
 
 import { useBudgetComponents } from '.';
-
-import {
-  useDraggable,
-  useDroppable,
-  DropHighlight,
-  type OnDragChangeCallback,
-  type OnDropCallback,
-  type DragState,
-} from '@desktop-client/components/sort';
-import { Row, ROW_HEIGHT } from '@desktop-client/components/table';
-import { useDragRef } from '@desktop-client/hooks/useDragRef';
 
 type ExpenseGroupProps = {
   group: ComponentProps<typeof SidebarGroup>['group'];
@@ -95,7 +93,7 @@ export function ExpenseGroup({
       style={{
         fontWeight: 600,
         opacity: group.hidden ? 0.33 : undefined,
-        backgroundColor: theme.tableRowHeaderBackground,
+        backgroundColor: theme.budgetHeaderCurrentMonth, //use budget colors
       }}
     >
       {dragState && !dragState.preview && dragState.type === 'group' && (

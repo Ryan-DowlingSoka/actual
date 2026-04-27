@@ -1,11 +1,12 @@
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 
-import { type CustomReportEntity } from 'loot-core/types/models';
+import type { CustomReportEntity } from '@actual-app/core/types/models';
+
+import { useReports } from '#hooks/useReports';
 
 import { Autocomplete } from './Autocomplete';
 import { ReportList } from './ReportList';
-
-import { useReports } from '@desktop-client/hooks/useReports';
 
 type ReportAutocompleteProps = {
   embedded?: boolean;
@@ -15,7 +16,7 @@ export function ReportAutocomplete({
   embedded,
   ...props
 }: ReportAutocompleteProps) {
-  const { data: reports } = useReports();
+  const { data: reports = [] } = useReports();
 
   return (
     <Autocomplete

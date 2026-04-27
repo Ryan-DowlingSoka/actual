@@ -1,15 +1,9 @@
-import {
-  createContext,
-  useEffect,
-  useMemo,
-  useContext,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo } from 'react';
+import type { ReactNode } from 'react';
 
+import { listen, send } from '@actual-app/core/platform/client/connection';
+import type { Query } from '@actual-app/core/shared/query';
 import { LRUCache } from 'lru-cache';
-
-import { listen, send } from 'loot-core/platform/client/fetch';
-import { type Query } from 'loot-core/shared/query';
 
 type SpreadsheetContextValue = ReturnType<typeof makeSpreadsheet>;
 const SpreadsheetContext = createContext<SpreadsheetContextValue | undefined>(
@@ -92,7 +86,7 @@ function makeSpreadsheet() {
       binding = typeof binding === 'string' ? { name: binding } : binding;
 
       if (binding.query) {
-        this.createQuery(sheetName, binding.name, binding.query);
+        void this.createQuery(sheetName, binding.name, binding.query);
       }
 
       const resolvedName = `${sheetName}!${binding.name}`;
@@ -109,12 +103,12 @@ function makeSpreadsheet() {
       }
 
       if (cellCache[resolvedName] != null) {
-        cellCache[resolvedName].then(callback);
+        void cellCache[resolvedName].then(callback);
       } else {
         const req = this.get(sheetName, binding.name);
         cellCache[resolvedName] = req;
 
-        req.then(result => {
+        void req.then(result => {
           // We only want to call the callback if it's still waiting on
           // the same request. If we've received a `cells-changed` event
           // for this already then it's already been called and we don't

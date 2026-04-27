@@ -7,15 +7,14 @@ import { SvgExclamationOutline } from '@actual-app/components/icons/v1';
 import { Popover } from '@actual-app/components/popover';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type { AccountEntity } from '@actual-app/core/types/models';
 
-import { type AccountEntity } from 'loot-core/types/models';
-
-import { unlinkAccount } from '@desktop-client/accounts/accountsSlice';
-import { Link } from '@desktop-client/components/common/Link';
-import { authorizeBank } from '@desktop-client/gocardless';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useFailedAccounts } from '@desktop-client/hooks/useFailedAccounts';
-import { useDispatch } from '@desktop-client/redux';
+import { useUnlinkAccountMutation } from '#accounts';
+import { Link } from '#components/common/Link';
+import { authorizeBank } from '#gocardless';
+import { useAccounts } from '#hooks/useAccounts';
+import { useFailedAccounts } from '#hooks/useFailedAccounts';
+import { useDispatch } from '#redux';
 
 function useErrorMessage() {
   const { t } = useTranslation();
@@ -68,6 +67,11 @@ function useErrorMessage() {
           </Trans>
         );
 
+      case 'ACCOUNT_MISSING':
+        return t(
+          'This account was not found in SimpleFIN. Try unlinking and relinking the account.',
+        );
+
       default:
     }
 
@@ -86,7 +90,7 @@ function useErrorMessage() {
 }
 
 export function AccountSyncCheck() {
-  const accounts = useAccounts();
+  const { data: accounts = [] } = useAccounts();
   const failedAccounts = useFailedAccounts();
   const dispatch = useDispatch();
   const { id } = useParams();
@@ -99,21 +103,22 @@ export function AccountSyncCheck() {
       setOpen(false);
 
       if (acc.account_id) {
-        authorizeBank(dispatch);
+        void authorizeBank(dispatch);
       }
     },
     [dispatch],
   );
 
+  const unlinkAccount = useUnlinkAccountMutation();
   const unlink = useCallback(
     (acc: AccountEntity) => {
       if (acc.id) {
-        dispatch(unlinkAccount({ id: acc.id }));
+        unlinkAccount.mutate({ id: acc.id });
       }
 
       setOpen(false);
     },
-    [dispatch],
+    [unlinkAccount],
   );
 
   if (!failedAccounts || !id) {

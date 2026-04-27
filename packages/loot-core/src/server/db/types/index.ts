@@ -22,6 +22,8 @@ export type DbAccount = {
   subtype?: string | null;
   bank?: string | null;
   account_sync_source?: 'simpleFin' | 'goCardless' | null;
+  last_reconciled?: string | null;
+  last_sync?: string | null;
 };
 
 export type DbBank = {
@@ -118,6 +120,7 @@ export type DbSchedule = {
   active: 1 | 0;
   completed: 1 | 0;
   posts_transaction: 1 | 0;
+  custom_upcoming_length: string | null;
   tombstone: 1 | 0;
 };
 
@@ -238,8 +241,15 @@ export type DbCustomReport = {
   tombstone: 1 | 0;
 };
 
+export type DbDashboardPage = {
+  id: string;
+  name: string;
+  tombstone: 1 | 0;
+};
+
 export type DbDashboard = {
   id: string;
+  dashboard_page_id: string;
   type: string;
   width: number;
   height: number;
@@ -314,6 +324,7 @@ export type DbViewSchedule = {
   active: DbSchedule['active'];
   completed: DbSchedule['completed'];
   posts_transaction: DbSchedule['posts_transaction'];
+  custom_upcoming_length: DbSchedule['custom_upcoming_length'];
   tombstone: DbSchedule['tombstone'];
   _payee: DbPayeeMapping['targetId'];
   _account: DbAccount['id'];

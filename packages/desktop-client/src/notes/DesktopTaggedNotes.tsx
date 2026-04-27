@@ -1,9 +1,9 @@
 import React from 'react';
 
-import {Button} from '@actual-app/components/button';
-import {View} from '@actual-app/components/view';
+import { Button } from '@actual-app/components/button';
+import { View } from '@actual-app/components/view';
 
-import {useTagCSS} from '@desktop-client/hooks/useTagCSS';
+import {useTagCSS} from '#hooks/useTagCSS';
 import {Text} from "@actual-app/components/text";
 import {Tooltip} from "@actual-app/components/tooltip";
 import {styles} from "@actual-app/components/styles";
@@ -26,7 +26,7 @@ export function DesktopTaggedNotes({
                                    }: DesktopTaggedNotesProps) {
   const getTagCSS = useTagCSS();
   return (
-    <View style={{display: 'inline'}}>
+    <View style={{ display: 'inline' }}>
       <Button
         variant="bare"
         className={getTagCSS(tag)}

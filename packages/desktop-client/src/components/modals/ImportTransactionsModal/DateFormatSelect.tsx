@@ -4,14 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Select } from '@actual-app/components/select';
 import { View } from '@actual-app/components/view';
 
-import {
-  dateFormats,
-  type DateFormat,
-  type ImportTransaction,
-  type FieldMapping,
-} from './utils';
+import { SectionLabel } from '#components/forms';
 
-import { SectionLabel } from '@desktop-client/components/forms';
+import { dateFormats } from './utils';
+import type { DateFormat, FieldMapping, ImportTransaction } from './utils';
 
 type DateFormatSelectProps = {
   transactions: ImportTransaction[];

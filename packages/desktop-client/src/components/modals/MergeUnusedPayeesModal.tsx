@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -6,19 +6,16 @@ import { Paragraph } from '@actual-app/components/paragraph';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { PayeeEntity } from '@actual-app/core/types/models';
+import type { TransObjectLiteral } from '@actual-app/core/types/util';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type PayeeEntity } from 'loot-core/types/models';
-import { type TransObjectLiteral } from 'loot-core/types/util';
-
-import { Information } from '@desktop-client/components/alerts';
-import { Modal, ModalButtons } from '@desktop-client/components/common/Modal';
-import { usePayees } from '@desktop-client/hooks/usePayees';
-import {
-  type Modal as ModalType,
-  replaceModal,
-} from '@desktop-client/modals/modalsSlice';
-import { useSelector, useDispatch } from '@desktop-client/redux';
+import { Information } from '#components/alerts';
+import { Modal, ModalButtons } from '#components/common/Modal';
+import { usePayees } from '#hooks/usePayees';
+import { replaceModal } from '#modals/modalsSlice';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { useDispatch, useSelector } from '#redux';
 
 const highlightStyle = { color: theme.pageTextPositive };
 
@@ -32,7 +29,7 @@ export function MergeUnusedPayeesModal({
   targetPayeeId,
 }: MergeUnusedPayeesModalProps) {
   const { t } = useTranslation();
-  const allPayees = usePayees();
+  const { data: allPayees = [] } = usePayees();
   const modalStack = useSelector(state => state.modals.modalStack);
   const isEditingRule = !!modalStack.find(m => m.name === 'edit-rule');
   const dispatch = useDispatch();
@@ -105,7 +102,7 @@ export function MergeUnusedPayeesModal({
 
   return (
     <Modal name="merge-unused-payees">
-      {({ state: { close } }) => (
+      {({ state }) => (
         <View style={{ padding: 20, maxWidth: 500 }}>
           <View>
             <Paragraph style={{ marginBottom: 10, fontWeight: 500 }}>
@@ -199,8 +196,8 @@ export function MergeUnusedPayeesModal({
                 autoFocus
                 style={{ marginRight: 10 }}
                 onPress={() => {
-                  onMerge(targetPayee);
-                  close();
+                  void onMerge(targetPayee);
+                  state.close();
                 }}
               >
                 <Trans>Merge</Trans>
@@ -209,14 +206,14 @@ export function MergeUnusedPayeesModal({
                 <Button
                   style={{ marginRight: 10 }}
                   onPress={() => {
-                    onMergeAndCreateRule(targetPayee);
-                    close();
+                    void onMergeAndCreateRule(targetPayee);
+                    state.close();
                   }}
                 >
                   <Trans>Merge and edit rule</Trans>
                 </Button>
               )}
-              <Button style={{ marginRight: 10 }} onPress={close}>
+              <Button style={{ marginRight: 10 }} onPress={() => state.close()}>
                 <Trans>Do nothing</Trans>
               </Button>
             </ModalButtons>

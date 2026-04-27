@@ -6,16 +6,13 @@ import { InitialFocus } from '@actual-app/components/initial-focus';
 import { styles } from '@actual-app/components/styles';
 import { View } from '@actual-app/components/view';
 
-import { useEnvelopeSheetValue } from '@desktop-client/components/budget/envelope/EnvelopeBudgetComponents';
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { FieldLabel } from '@desktop-client/components/mobile/MobileForms';
-import { AmountInput } from '@desktop-client/components/util/AmountInput';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
-import { envelopeBudget } from '@desktop-client/spreadsheet/bindings';
+import { useEnvelopeSheetValue } from '#components/budget/envelope/EnvelopeBudgetComponents';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { FieldLabel } from '#components/mobile/MobileForms';
+import { AmountInput } from '#components/util/AmountInput';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { envelopeBudget } from '#spreadsheet/bindings';
 
 type HoldBufferModalProps = Extract<
   ModalType,
@@ -24,6 +21,7 @@ type HoldBufferModalProps = Extract<
 
 export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
   const { t } = useTranslation(); // Initialize i18next
+  const [hideFraction] = useSyncedPref('hideFraction');
   const available = useEnvelopeSheetValue(envelopeBudget.toBudget) ?? 0;
   const [amount, setAmount] = useState<number>(0);
 
@@ -39,18 +37,18 @@ export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
 
   return (
     <Modal name="hold-buffer">
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={t('Hold for next month')}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View>
             <FieldLabel title={t('Hold this amount:')} />{' '}
             <InitialFocus>
               <AmountInput
-                value={available}
-                autoDecimals
+                value={amount}
+                autoDecimals={String(hideFraction) !== 'true'}
                 zeroSign="+"
                 style={{
                   marginLeft: styles.mobileEditingPadding,
@@ -62,7 +60,7 @@ export function HoldBufferModal({ onSubmit }: HoldBufferModalProps) {
                 onUpdate={setAmount}
                 onEnter={() => {
                   _onSubmit(amount);
-                  close();
+                  state.close();
                 }}
               />
             </InitialFocus>

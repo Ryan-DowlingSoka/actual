@@ -1,4 +1,5 @@
-import React, { type ReactNode, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -10,16 +11,15 @@ import { Popover } from '@actual-app/components/popover';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { isElectron } from '@actual-app/core/shared/environment';
+import * as Platform from '@actual-app/core/shared/platform';
 
-import { isElectron } from 'loot-core/shared/environment';
-import * as Platform from 'loot-core/shared/platform';
-
-import { closeBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
-import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { closeBudget } from '#budgetfiles/budgetfilesSlice';
+import { useContextMenu } from '#hooks/useContextMenu';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { useNavigate } from '#hooks/useNavigate';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 type BudgetNameProps = {
   children?: ReactNode;
@@ -73,7 +73,7 @@ function EditableBudgetName() {
         setEditing(true);
         break;
       case 'settings':
-        navigate('/settings');
+        void navigate('/settings');
         break;
       case 'loadBackup':
         if (isElectron()) {
@@ -85,7 +85,7 @@ function EditableBudgetName() {
         }
         break;
       case 'close':
-        dispatch(closeBudget());
+        void dispatch(closeBudget());
         break;
       default:
     }
@@ -126,7 +126,7 @@ function EditableBudgetName() {
         ref={triggerRef}
         variant="bare"
         style={{
-          color: theme.buttonNormalBorder,
+          color: theme.sidebarBudgetName,
           fontSize: 16,
           fontWeight: 500,
           marginLeft: -5,

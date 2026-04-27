@@ -1,25 +1,21 @@
 // @ts-strict-ignore
 
-import { getCurrency } from 'loot-core/shared/currencies';
-
-import * as asyncStorage from '../../platform/server/asyncStorage';
-import { getLocale } from '../../shared/locale';
-import * as monthUtils from '../../shared/months';
-import {
-  type IntegerAmount,
-  integerToCurrency,
-  safeNumber,
-} from '../../shared/util';
-import { type CategoryEntity } from '../../types/models';
-import * as db from '../db';
-import * as sheet from '../sheet';
-import { batchMessages } from '../sync';
+import * as asyncStorage from '#platform/server/asyncStorage';
+import * as db from '#server/db';
+import * as sheet from '#server/sheet';
+import { batchMessages } from '#server/sync';
+import { getCurrency } from '#shared/currencies';
+import { getLocale } from '#shared/locale';
+import * as monthUtils from '#shared/months';
+import { integerToCurrency, safeNumber } from '#shared/util';
+import type { IntegerAmount } from '#shared/util';
+import type { CategoryEntity } from '#types/models';
 
 export async function getSheetValue(
   sheetName: string,
   cell: string,
 ): Promise<number> {
-  const node = await sheet.getCell(sheetName, cell);
+  const node = sheet.getCell(sheetName, cell);
   return safeNumber(typeof node.value === 'number' ? node.value : 0);
 }
 
@@ -27,7 +23,7 @@ export async function getSheetBoolean(
   sheetName: string,
   cell: string,
 ): Promise<boolean> {
-  const node = await sheet.getCell(sheetName, cell);
+  const node = sheet.getCell(sheetName, cell);
   return typeof node.value === 'boolean' ? node.value : false;
 }
 
@@ -47,10 +43,10 @@ function calcBufferedAmount(
 type BudgetTable = 'reflect_budgets' | 'zero_budgets';
 
 function getBudgetTable(): BudgetTable {
-  return isReflectBudget() ? 'reflect_budgets' : 'zero_budgets';
+  return isTrackingBudget() ? 'reflect_budgets' : 'zero_budgets';
 }
 
-export function isReflectBudget(): boolean {
+export function isTrackingBudget(): boolean {
   const budgetType = db.firstSync<Pick<db.DbPreference, 'value'>>(
     `SELECT value FROM preferences WHERE id = ?`,
     ['budgetType'],
@@ -225,13 +221,13 @@ export async function copyPreviousMonth({
 
   await batchMessages(async () => {
     budgetData.forEach(prevBudget => {
-      if (prevBudget.is_income === 1 && !isReflectBudget()) {
+      if (prevBudget.is_income === 1 && !isTrackingBudget()) {
         return;
       }
       if (prevBudget.hidden === 1 || prevBudget.group_hidden === 1) {
         return;
       }
-      setBudget({
+      void setBudget({
         category: prevBudget.category,
         month,
         amount: prevBudget.amount,
@@ -253,7 +249,7 @@ export async function copySinglePreviousMonth({
     'budget-' + category,
   );
   await batchMessages(async () => {
-    setBudget({ category, month, amount: newAmount });
+    void setBudget({ category, month, amount: newAmount });
   });
 }
 
@@ -264,10 +260,10 @@ export async function setZero({ month }: { month: string }): Promise<void> {
 
   await batchMessages(async () => {
     categories.forEach(cat => {
-      if (cat.is_income === 1 && !isReflectBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget()) {
         return;
       }
-      setBudget({ category: cat.id, month, amount: 0 });
+      void setBudget({ category: cat.id, month, amount: 0 });
     });
   });
 }
@@ -292,7 +288,7 @@ export async function set3MonthAvg({
 
   await batchMessages(async () => {
     for (const cat of categories) {
-      if (cat.is_income === 1 && !isReflectBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget()) {
         continue;
       }
 
@@ -315,7 +311,7 @@ export async function set3MonthAvg({
         avg *= -1;
       }
 
-      setBudget({ category: cat.id, month, amount: avg });
+      void setBudget({ category: cat.id, month, amount: avg });
     }
   });
 }
@@ -336,10 +332,10 @@ export async function set12MonthAvg({
 
   await batchMessages(async () => {
     for (const cat of categories) {
-      if (cat.is_income === 1 && !isReflectBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget()) {
         continue;
       }
-      setNMonthAvg({ month, N: 12, category: cat.id });
+      void setNMonthAvg({ month, N: 12, category: cat.id });
     }
   });
 }
@@ -360,10 +356,10 @@ export async function set6MonthAvg({
 
   await batchMessages(async () => {
     for (const cat of categories) {
-      if (cat.is_income === 1 && !isReflectBudget()) {
+      if (cat.is_income === 1 && !isTrackingBudget()) {
         continue;
       }
-      setNMonthAvg({ month, N: 6, category: cat.id });
+      void setNMonthAvg({ month, N: 6, category: cat.id });
     }
   });
 }
@@ -398,7 +394,7 @@ export async function setNMonthAvg({
       avg *= -1;
     }
 
-    setBudget({ category, month, amount: avg });
+    void setBudget({ category, month, amount: avg });
   });
 }
 
@@ -524,6 +520,10 @@ export async function coverOverbudgeted({
 }): Promise<void> {
   const sheetName = monthUtils.sheetForMonth(month);
   const categoryBudget = await getSheetValue(sheetName, 'budget-' + category);
+  const categoryLeftover = await getSheetValue(
+    sheetName,
+    'leftover-' + category,
+  );
 
   // Cover provided amount (can be partial) or full overbudgeted amount.
   const amountToCover = amount
@@ -531,12 +531,12 @@ export async function coverOverbudgeted({
       -amount
     : await getSheetValue(sheetName, 'to-budget');
 
-  if (amountToCover >= 0 || categoryBudget <= 0) {
+  if (amountToCover >= 0 || categoryLeftover <= 0) {
     return;
   }
 
-  // Don't allow the budget of the covering category to go negative.
-  const coverableAmount = Math.min(Math.abs(amountToCover), categoryBudget);
+  // Don't exceed the available balance of the covering category.
+  const coverableAmount = Math.min(Math.abs(amountToCover), categoryLeftover);
 
   await batchMessages(async () => {
     await setBudget({
@@ -605,13 +605,13 @@ export async function setCategoryCarryover({
 
   await batchMessages(async () => {
     for (const month of months) {
-      setCarryover(table, category, dbMonth(month).toString(), flag);
+      void setCarryover(table, category, dbMonth(month).toString(), flag);
     }
   });
 }
 
 function addNewLine(notes?: string) {
-  return !notes ? '' : `${notes}${notes && '\n'}`;
+  return !notes ? '' : `${notes}\n`;
 }
 
 async function addMovementNotes({

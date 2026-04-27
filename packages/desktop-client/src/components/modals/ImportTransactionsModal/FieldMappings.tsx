@@ -4,15 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { View } from '@actual-app/components/view';
 
+import { SectionLabel } from '#components/forms';
+
 import { SelectField } from './SelectField';
 import { SubLabel } from './SubLabel';
-import {
-  stripCsvImportTransaction,
-  type FieldMapping,
-  type ImportTransaction,
-} from './utils';
-
-import { SectionLabel } from '@desktop-client/components/forms';
+import { stripCsvImportTransaction } from './utils';
+import type { FieldMapping, ImportTransaction } from './utils';
 
 type FieldMappingsProps = {
   transactions: ImportTransaction[];

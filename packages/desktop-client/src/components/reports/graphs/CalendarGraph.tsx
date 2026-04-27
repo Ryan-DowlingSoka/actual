@@ -1,4 +1,5 @@
-import { type Ref, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { Ref } from 'react';
 import { Trans } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -6,6 +7,7 @@ import { styles } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import type { SyncedPrefs } from '@actual-app/core/types/prefs';
 import {
   addDays,
   format as formatDate,
@@ -15,12 +17,10 @@ import {
   startOfWeek,
 } from 'date-fns';
 
-import { type SyncedPrefs } from 'loot-core/types/prefs';
-
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { chartTheme } from '@desktop-client/components/reports/chart-theme';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useResizeObserver } from '@desktop-client/hooks/useResizeObserver';
+import { FinancialText } from '#components/FinancialText';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { useFormat } from '#hooks/useFormat';
+import { useResizeObserver } from '#hooks/useResizeObserver';
 
 type CalendarGraphProps = {
   data: {
@@ -137,13 +137,15 @@ export function CalendarGraph({
                       </View>
                       <View
                         style={{
-                          color: chartTheme.colors.blue,
+                          color: theme.reportsNumberPositive,
                           flexDirection: 'row',
                         }}
                       >
                         {day.incomeValue !== 0 ? (
                           <PrivacyFilter>
-                            {format(day.incomeValue, 'financial')}
+                            <FinancialText>
+                              {format(day.incomeValue, 'financial')}
+                            </FinancialText>
                           </PrivacyFilter>
                         ) : (
                           ''
@@ -166,13 +168,15 @@ export function CalendarGraph({
                       </View>
                       <View
                         style={{
-                          color: chartTheme.colors.red,
+                          color: theme.reportsNumberNegative,
                           flexDirection: 'row',
                         }}
                       >
                         {day.expenseValue !== 0 ? (
                           <PrivacyFilter>
-                            {format(day.expenseValue, 'financial')}
+                            <FinancialText>
+                              {format(day.expenseValue, 'financial')}
+                            </FinancialText>
                           </PrivacyFilter>
                         ) : (
                           ''
@@ -266,7 +270,7 @@ function DayButton({ day, onPress, fontSize, resizeRef }: DayButtonProps) {
             position: 'absolute',
             width: '50%',
             height: '100%',
-            background: chartTheme.colors.red,
+            background: theme.reportsNumberNegative,
             opacity: 0.2,
             right: 0,
           }}
@@ -278,7 +282,7 @@ function DayButton({ day, onPress, fontSize, resizeRef }: DayButtonProps) {
             position: 'absolute',
             width: '50%',
             height: '100%',
-            background: chartTheme.colors.blue,
+            background: theme.reportsNumberPositive,
             opacity: 0.2,
             left: 0,
           }}
@@ -291,7 +295,7 @@ function DayButton({ day, onPress, fontSize, resizeRef }: DayButtonProps) {
           bottom: 0,
           opacity: 0.9,
           height: `${Math.ceil(day.incomeSize)}%`,
-          backgroundColor: chartTheme.colors.blue,
+          backgroundColor: theme.reportsNumberPositive,
           width: '50%',
           transition: 'height 0.5s ease-out',
         }}
@@ -304,7 +308,7 @@ function DayButton({ day, onPress, fontSize, resizeRef }: DayButtonProps) {
           bottom: 0,
           opacity: 0.9,
           height: `${Math.ceil(day.expenseSize)}%`,
-          backgroundColor: chartTheme.colors.red,
+          backgroundColor: theme.reportsNumberNegative,
           width: '50%',
           transition: 'height 0.5s ease-out',
         }}

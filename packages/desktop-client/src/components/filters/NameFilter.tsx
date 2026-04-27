@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +8,7 @@ import { SpaceBetween } from '@actual-app/components/space-between';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 
-import { FormField, FormLabel } from '@desktop-client/components/forms';
+import { FormField, FormLabel } from '#components/forms';
 
 export function NameFilter({
   menuItem,

@@ -5,18 +5,18 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  balanceTypeOpType,
+  DataEntity,
+} from '@actual-app/core/types/models';
 
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type balanceTypeOpType,
-  type DataEntity,
-} from 'loot-core/types/models';
+import { FinancialText } from '#components/FinancialText';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
 
 import { ReportOptions } from './ReportOptions';
-
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
 
 type ReportSummaryProps = {
   startDate: string;
@@ -115,9 +115,11 @@ export function ReportSummary({
             ? t('TOTAL SPENDING')
             : balanceTypeOp === 'totalAssets'
               ? t('TOTAL DEPOSITS')
-              : t('NET {{net}}', { net })}
+              : balanceTypeOp === 'totalBudgeted'
+                ? t('TOTAL BUDGETED')
+                : t('NET {{net}}', { net })}
         </Text>
-        <Text
+        <FinancialText
           style={{
             ...styles.veryLargeText,
             alignItems: 'center',
@@ -128,7 +130,7 @@ export function ReportSummary({
           <PrivacyFilter>
             {format(data[balanceTypeOp], 'financial')}
           </PrivacyFilter>
-        </Text>
+        </FinancialText>
         <Text style={{ fontWeight: 600 }}>
           <Trans>For this time period</Trans>
         </Text>
@@ -154,9 +156,11 @@ export function ReportSummary({
             ? t('AVERAGE SPENDING')
             : balanceTypeOp === 'totalAssets'
               ? t('AVERAGE DEPOSIT')
-              : t('AVERAGE NET')}
+              : balanceTypeOp === 'totalBudgeted'
+                ? t('AVERAGE BUDGETED')
+                : t('AVERAGE NET')}
         </Text>
-        <Text
+        <FinancialText
           style={{
             ...styles.veryLargeText,
             alignItems: 'center',
@@ -167,7 +171,7 @@ export function ReportSummary({
           <PrivacyFilter>
             {!isNaN(average) && format(average, 'financial')}
           </PrivacyFilter>
-        </Text>
+        </FinancialText>
         <Text style={{ fontWeight: 600 }}>
           <Trans>
             Per{' '}

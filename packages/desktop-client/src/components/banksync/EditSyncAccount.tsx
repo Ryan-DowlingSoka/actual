@@ -6,21 +6,16 @@ import { SpaceBetween } from '@actual-app/components/space-between';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type { AccountEntity } from '@actual-app/core/types/models';
 
-import { type AccountEntity } from 'loot-core/types/models';
+import { useUnlinkAccountMutation } from '#accounts';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 import { BankSyncCheckboxOptions } from './BankSyncCheckboxOptions';
 import { FieldMapping } from './FieldMapping';
 import { useBankSyncAccountSettings } from './useBankSyncAccountSettings';
-
-import { unlinkAccount } from '@desktop-client/accounts/accountsSlice';
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
 
 export type TransactionDirection = 'payment' | 'deposit';
 
@@ -148,6 +143,8 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
     setReimportDeleted,
     importTransactions,
     setImportTransactions,
+    updateDates,
+    setUpdateDates,
     mappings,
     setMapping,
     fields,
@@ -159,6 +156,7 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
     close();
   };
 
+  const unlinkAccount = useUnlinkAccountMutation();
   const onUnlink = async (close: () => void) => {
     dispatch(
       pushModal({
@@ -168,8 +166,12 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
             accountName: account.name,
             isViewBankSyncSettings: true,
             onUnlink: () => {
-              dispatch(unlinkAccount({ id: account.id }));
-              close();
+              unlinkAccount.mutate(
+                { id: account.id },
+                {
+                  onSuccess: close,
+                },
+              );
             },
           },
         },
@@ -188,13 +190,13 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
       name="synced-account-edit"
       containerProps={{ style: { width: 800 } }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={t('{{accountName}} bank sync settings', {
               accountName: potentiallyTruncatedAccountName,
             })}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
 
           <Text style={{ fontSize: 15 }}>
@@ -222,6 +224,8 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
             setReimportDeleted={setReimportDeleted}
             importTransactions={importTransactions}
             setImportTransactions={setImportTransactions}
+            updateDates={updateDates}
+            setUpdateDates={setUpdateDates}
             helpMode="desktop"
           />
 
@@ -237,20 +241,20 @@ export function EditSyncAccount({ account }: EditSyncAccountProps) {
             <Button
               style={{ color: theme.errorText }}
               onPress={() => {
-                onUnlink(close);
+                void onUnlink(() => state.close());
               }}
             >
               <Trans>Unlink account</Trans>
             </Button>
 
             <SpaceBetween gap={10}>
-              <Button onPress={close}>
+              <Button onPress={() => state.close()}>
                 <Trans>Cancel</Trans>
               </Button>
               <Button
                 variant="primary"
                 onPress={() => {
-                  onSave(close);
+                  void onSave(() => state.close());
                 }}
               >
                 <Trans>Save</Trans>

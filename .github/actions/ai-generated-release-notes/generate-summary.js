@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const https = require('https');
 const fs = require('fs');
+const https = require('https');
 
 const commentBody = process.env.GITHUB_EVENT_COMMENT_BODY;
 const prDetailsJson = process.env.PR_DETAILS;
@@ -24,8 +24,6 @@ try {
     setOutput('result', 'null');
     process.exit(0);
   }
-
-  console.log('CodeRabbit comment body:', commentBody);
 
   const data = JSON.stringify({
     model: 'gpt-4o-mini',
@@ -71,7 +69,7 @@ try {
         console.log('Generated summary:', summary);
 
         const result = {
-          summary: summary,
+          summary,
           prNumber: prDetails.number,
           author: prDetails.author,
         };

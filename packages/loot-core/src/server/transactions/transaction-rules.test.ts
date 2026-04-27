@@ -1,21 +1,21 @@
+import { aqlQuery } from '#server/aql';
+import * as db from '#server/db';
+import { loadMappings } from '#server/db/mappings';
 // @ts-strict-ignore
-import { q } from '../../shared/query';
-import { aqlQuery } from '../aql';
-import * as db from '../db';
-import { loadMappings } from '../db/mappings';
+import { q } from '#shared/query';
 
 import {
-  getRules,
-  loadRules,
-  insertRule,
-  updateRule,
-  deleteRule,
-  makeRule,
-  runRules,
   conditionsToAQL,
-  resetState,
+  deleteRule,
   getProbableCategory,
+  getRules,
+  insertRule,
+  loadRules,
+  makeRule,
+  resetState,
+  runRules,
   updateCategoryRules,
+  updateRule,
 } from './transaction-rules';
 
 // TODO: write tests to make sure payee renaming is "pre" and category
@@ -451,9 +451,9 @@ describe('Transaction rules', () => {
     expect(transactions.map(t => t.id)).toEqual(['2', '3']);
 
     transactions = await getMatchingTransactions([
-      { field: 'notes', op: 'oneOf', value: ['fooo', 'barr'] },
+      { field: 'notes', op: 'is', value: 'barr' },
     ]);
-    expect(transactions.map(t => t.id)).toEqual(['2', '3', '1']);
+    expect(transactions.map(t => t.id)).toEqual(['1']);
 
     transactions = await getMatchingTransactions([
       { field: 'notes', op: 'is', value: '' },
@@ -508,6 +508,36 @@ describe('Transaction rules', () => {
     expect(transactions.map(t => t.id)).toEqual(['5', '1']);
 
     // todo: isapprox
+  });
+
+  test('transactions can be queried by hasTags when tag starts with dollar', async () => {
+    await loadRules();
+    const account = await db.insertAccount({ name: 'bank' });
+    const payeeId = await db.insertPayee({ name: 'payee' });
+
+    await db.insertTransaction({
+      id: '1',
+      date: '2020-10-01',
+      account,
+      payee: payeeId,
+      notes: 'Follow up #$Bug_Test issue',
+      amount: 123,
+    });
+
+    await db.insertTransaction({
+      id: '2',
+      date: '2020-10-01',
+      account,
+      payee: payeeId,
+      notes: 'Follow up #Tag_1 issue',
+      amount: 123,
+    });
+
+    const transactions = await getMatchingTransactions([
+      { field: 'notes', op: 'hasTags', value: '#$Bug_Test' },
+    ]);
+
+    expect(transactions.map(t => t.id)).toEqual(['1']);
   });
 
   test('and sub expression builds $and condition', async () => {

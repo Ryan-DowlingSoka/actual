@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -7,31 +7,24 @@ import { AnimatedLoading } from '@actual-app/components/icons/AnimatedLoading';
 import { Paragraph } from '@actual-app/components/paragraph';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { sendCatch } from '@actual-app/core/platform/client/connection';
+import type {
+  GoCardlessInstitution,
+  GoCardlessToken,
+} from '@actual-app/core/types/models';
 
-import { sendCatch } from 'loot-core/platform/client/fetch';
-import {
-  type GoCardlessInstitution,
-  type GoCardlessToken,
-} from 'loot-core/types/models';
-
-import { Error, Warning } from '@desktop-client/components/alerts';
-import { Autocomplete } from '@desktop-client/components/autocomplete/Autocomplete';
-import { Link } from '@desktop-client/components/common/Link';
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { FormField, FormLabel } from '@desktop-client/components/forms';
-import { COUNTRY_OPTIONS } from '@desktop-client/components/util/countries';
-import { getCountryFromBrowser } from '@desktop-client/components/util/localeToCountry';
-import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
-import { useGoCardlessStatus } from '@desktop-client/hooks/useGoCardlessStatus';
-import {
-  type Modal as ModalType,
-  pushModal,
-} from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { Error, Warning } from '#components/alerts';
+import { Autocomplete } from '#components/autocomplete/Autocomplete';
+import { Link } from '#components/common/Link';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { FormField, FormLabel } from '#components/forms';
+import { COUNTRY_OPTIONS } from '#components/util/countries';
+import { getCountryFromBrowser } from '#components/util/localeToCountry';
+import { useGlobalPref } from '#hooks/useGlobalPref';
+import { useGoCardlessStatus } from '#hooks/useGoCardlessStatus';
+import { pushModal } from '#modals/modalsSlice';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 function useAvailableBanks(country: string) {
   const [banks, setBanks] = useState<GoCardlessInstitution[]>([]);
@@ -62,7 +55,7 @@ function useAvailableBanks(country: string) {
       setIsLoading(false);
     }
 
-    fetch();
+    void fetch();
   }, [setBanks, setIsLoading, country]);
 
   return {
@@ -275,11 +268,11 @@ export function GoCardlessExternalMsgModal({
       onClose={onClose}
       containerProps={{ style: { width: '30vw' } }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={t('Link Your Bank')}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View>
             <Paragraph style={{ fontSize: 15 }}>

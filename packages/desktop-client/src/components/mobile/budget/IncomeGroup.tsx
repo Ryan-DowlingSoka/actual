@@ -6,27 +6,24 @@ import { Card } from '@actual-app/components/card';
 import { SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { SvgCheveronRight } from '@actual-app/components/icons/v1';
 import { Label } from '@actual-app/components/label';
-import { type CSSProperties, styles } from '@actual-app/components/styles';
+import { styles } from '@actual-app/components/styles';
+import type { CSSProperties } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type { CategoryGroupEntity } from '@actual-app/core/types/models';
 import { css } from '@emotion/css';
 import { AutoTextSize } from 'auto-text-size';
 
-import * as monthUtils from 'loot-core/shared/months';
-import { type CategoryGroupEntity } from 'loot-core/types/models';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { CellValue } from '#components/spreadsheet/CellValue';
+import { useFormat } from '#hooks/useFormat';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { envelopeBudget, trackingBudget } from '#spreadsheet/bindings';
 
 import { getColumnWidth, ROW_HEIGHT } from './BudgetTable';
 import { IncomeCategoryList } from './IncomeCategoryList';
-
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { CellValue } from '@desktop-client/components/spreadsheet/CellValue';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import {
-  envelopeBudget,
-  trackingBudget,
-} from '@desktop-client/spreadsheet/bindings';
 
 type IncomeGroupProps = {
   categoryGroup: CategoryGroupEntity;
@@ -279,6 +276,7 @@ function IncomeGroupCells({ group }: IncomeGroupCellsProps) {
                   maxFontSizePx={12}
                   mode="oneline"
                   style={{
+                    ...styles.tnum,
                     width: columnWidth,
                     justifyContent: 'center',
                     alignItems: 'flex-end',
@@ -309,6 +307,7 @@ function IncomeGroupCells({ group }: IncomeGroupCellsProps) {
                 maxFontSizePx={12}
                 mode="oneline"
                 style={{
+                  ...styles.tnum,
                   width: columnWidth,
                   justifyContent: 'center',
                   alignItems: 'flex-end',

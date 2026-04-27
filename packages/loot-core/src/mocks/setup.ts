@@ -1,26 +1,26 @@
 // @ts-strict-ignore
 import * as nativeFs from 'fs';
 
-import * as fetchClient from '../platform/client/fetch';
-import * as sqlite from '../platform/server/sqlite';
-import * as db from '../server/db';
-import type * as MigrationsType from '../server/migrate/migrations';
+import * as fetchClient from '#platform/client/connection';
+import * as sqlite from '#platform/server/sqlite';
+import * as db from '#server/db';
+import type * as MigrationsType from '#server/migrate/migrations';
 import {
-  enableGlobalMutations,
   disableGlobalMutations,
-} from '../server/mutators';
-import { setServer } from '../server/server-config';
-import * as sheet from '../server/sheet';
-import { setSyncingMode } from '../server/sync';
-import * as rules from '../server/transactions/transaction-rules';
-import { updateVersion } from '../server/update';
-import { resetTracer, tracer } from '../shared/test-helpers';
+  enableGlobalMutations,
+} from '#server/mutators';
+import { setServer } from '#server/server-config';
+import * as sheet from '#server/sheet';
+import { setSyncingMode } from '#server/sync';
+import * as rules from '#server/transactions/transaction-rules';
+import { updateVersion } from '#server/update';
+import { resetTracer, tracer } from '#shared/test-helpers';
 
-vi.mock('../platform/client/fetch');
-vi.mock('../platform/exceptions');
-vi.mock('../platform/server/asyncStorage');
-vi.mock('../platform/server/connection');
-vi.mock('../server/post');
+vi.mock('#platform/client/connection');
+vi.mock('#platform/exceptions');
+vi.mock('#platform/server/asyncStorage');
+vi.mock('#platform/server/connection');
+vi.mock('#server/post');
 
 // By default, syncing is disabled
 setSyncingMode('disabled');
@@ -57,15 +57,12 @@ let _id = 1;
 global.resetRandomId = () => {
   _id = 1;
 };
-
-vi.mock('uuid', () => ({
-  v4: () => {
-    return 'id' + _id++;
-  },
-}));
-vi.mock('../server/migrate/migrations', async () => {
+Object.defineProperty(crypto, 'randomUUID', {
+  value: () => 'id' + _id++,
+});
+vi.mock('#server/migrate/migrations', async () => {
   const realMigrations = await vi.importActual<typeof MigrationsType>(
-    '../server/migrate/migrations',
+    '#server/migrate/migrations',
   );
   return {
     ...realMigrations,
@@ -79,7 +76,7 @@ vi.mock('../server/migrate/migrations', async () => {
 
 global.getDatabaseDump = async function (tables) {
   if (!tables) {
-    const rows = await sqlite.runQuery<{ name }>(
+    const rows = sqlite.runQuery<{ name }>(
       db.getDatabase(),
       "SELECT name FROM sqlite_master WHERE type='table'",
       [],
@@ -108,7 +105,7 @@ global.getDatabaseDump = async function (tables) {
 
       return [
         table,
-        await sqlite.runQuery(
+        sqlite.runQuery(
           db.getDatabase(),
           'SELECT * FROM ' + table + ' ORDER BY ' + sortColumn,
           [],
@@ -143,7 +140,7 @@ global.emptyDatabase = function (avoidUpdate) {
     );
 
     db.setDatabase(memoryDB);
-    await db.runQuery('INSERT INTO db_version (version) VALUES (?)', ['0.0.1']);
+    db.runQuery('INSERT INTO db_version (version) VALUES (?)', ['0.0.1']);
 
     if (!avoidUpdate) {
       await updateVersion();
@@ -161,7 +158,7 @@ beforeEach(() => {
 afterEach(() => {
   global.resetRandomId();
   tracer.end();
-  fetchClient.clearServer();
+  void fetchClient.clearServer();
 
   return new Promise(resolve => {
     if (sheet.get()) {

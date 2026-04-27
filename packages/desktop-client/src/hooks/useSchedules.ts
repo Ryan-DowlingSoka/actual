@@ -1,24 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { q, type Query } from 'loot-core/shared/query';
+import { q } from '@actual-app/core/shared/query';
+import type { Query } from '@actual-app/core/shared/query';
 import {
+  getHasTransactionsQuery,
   getStatus,
   getStatusLabel,
-  getHasTransactionsQuery,
-} from 'loot-core/shared/schedules';
+} from '@actual-app/core/shared/schedules';
+import type { ScheduleStatuses } from '@actual-app/core/shared/schedules';
 import type {
   AccountEntity,
   ScheduleEntity,
   TransactionEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
+
+import { accountFilter } from '#queries';
+import { liveQuery } from '#queries/liveQuery';
+import type { LiveQuery } from '#queries/liveQuery';
 
 import { useSyncedPref } from './useSyncedPref';
-
-import { accountFilter } from '@desktop-client/queries';
-import { liveQuery, type LiveQuery } from '@desktop-client/queries/liveQuery';
-
-export type ScheduleStatusType = ReturnType<typeof getStatus>;
-export type ScheduleStatuses = Map<ScheduleEntity['id'], ScheduleStatusType>;
 
 export type ScheduleStatusLabelType = ReturnType<typeof getStatusLabel>;
 export type ScheduleStatusLabels = Map<
@@ -42,7 +42,7 @@ function loadStatuses(
             s.next_date,
             s.completed,
             hasTrans.has(s.id),
-            upcomingLength,
+            s.custom_upcoming_length ?? upcomingLength,
           ),
         ]),
       ) as ScheduleStatuses;

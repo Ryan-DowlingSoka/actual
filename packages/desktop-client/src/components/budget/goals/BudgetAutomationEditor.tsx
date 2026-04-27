@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import type { ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Select } from '@actual-app/components/select';
@@ -7,25 +7,23 @@ import { SpaceBetween } from '@actual-app/components/space-between';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
-
 import type {
   CategoryGroupEntity,
   ScheduleEntity,
-} from 'loot-core/types/models';
+} from '@actual-app/core/types/models';
 
-import { type Action, setType } from './actions';
-import { displayTemplateTypes, type ReducerState } from './constants';
+import { FormField, FormLabel, FormTextLabel } from '#components/forms';
+
+import { setType } from './actions';
+import type { Action } from './actions';
+import { displayTemplateTypes } from './constants';
+import type { ReducerState } from './constants';
 import { HistoricalAutomation } from './editor/HistoricalAutomation';
+import { LimitAutomation } from './editor/LimitAutomation';
 import { PercentageAutomation } from './editor/PercentageAutomation';
+import { RefillAutomation } from './editor/RefillAutomation';
 import { ScheduleAutomation } from './editor/ScheduleAutomation';
-import { SimpleAutomation } from './editor/SimpleAutomation';
 import { WeekAutomation } from './editor/WeekAutomation';
-
-import {
-  FormField,
-  FormLabel,
-  FormTextLabel,
-} from '@desktop-client/components/forms';
 
 type BudgetAutomationEditorProps = {
   inline: boolean;
@@ -33,10 +31,25 @@ type BudgetAutomationEditorProps = {
   dispatch: (action: Action) => void;
   schedules: readonly ScheduleEntity[];
   categories: CategoryGroupEntity[];
+  hasLimitAutomation?: boolean;
+  onAddLimitAutomation?: () => void;
 };
 
 const displayTypeToDescription = {
-  simple: <Trans>Add a fixed amount to this category each month.</Trans>,
+  limit: (
+    <Trans>
+      Set a cap for all budget contributions to this category across all
+      automations. The maximum can be set on a monthly, weekly, or daily basis.
+      For example, a $100 weekly cap would result in a $400 monthly cap ($500
+      depending on the month).
+    </Trans>
+  ),
+  refill: (
+    <Trans>
+      Refill the category up to the balance limit set by the balance limit
+      automation.
+    </Trans>
+  ),
   week: (
     <Trans>
       Add a fixed amount to this category for each week in the month. For
@@ -75,14 +88,24 @@ export function BudgetAutomationEditor({
   dispatch,
   schedules,
   categories,
+  hasLimitAutomation = false,
+  onAddLimitAutomation,
 }: BudgetAutomationEditorProps) {
   const { t } = useTranslation();
 
   let automationEditor: ReactNode;
   switch (state.displayType) {
-    case 'simple':
+    case 'limit':
       automationEditor = (
-        <SimpleAutomation template={state.template} dispatch={dispatch} />
+        <LimitAutomation template={state.template} dispatch={dispatch} />
+      );
+      break;
+    case 'refill':
+      automationEditor = (
+        <RefillAutomation
+          hasLimitAutomation={hasLimitAutomation}
+          onAddLimitAutomation={onAddLimitAutomation}
+        />
       );
       break;
     case 'week':
@@ -114,6 +137,7 @@ export function BudgetAutomationEditor({
       );
       break;
     default:
+      state satisfies never;
       automationEditor = (
         <Text>
           <Trans>Unrecognized automation type.</Trans>

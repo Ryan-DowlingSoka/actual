@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 import { AccountPage } from './account-page';
 
@@ -14,6 +14,15 @@ export class BudgetPage {
     this.budgetSummary = page.getByTestId('budget-summary');
     this.budgetTable = page.getByTestId('budget-table');
     this.budgetTableTotals = this.budgetTable.getByTestId('budget-totals');
+  }
+
+  /**
+   * Wait for the budget page to finish loading. The budget-table is
+   * inside AutoSizer which returns null until layout provides width/
+   * height, so it only appears after the page has fully mounted.
+   */
+  async waitFor(...options: Parameters<Locator['waitFor']>) {
+    await this.budgetTable.waitFor(...options);
   }
 
   async getTotalBudgeted() {

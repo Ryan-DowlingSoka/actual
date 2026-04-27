@@ -1,5 +1,6 @@
 // @ts-strict-ignore
-import React, { type CSSProperties, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AlignedText } from '@actual-app/components/aligned-text';
@@ -18,33 +19,24 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import type { AccountEntity } from '@actual-app/core/types/models';
 import { css, cx } from '@emotion/css';
 
-import { type AccountEntity } from 'loot-core/types/models';
-
-import {
-  reopenAccount,
-  updateAccount,
-} from '@desktop-client/accounts/accountsSlice';
-import { BalanceHistoryGraph } from '@desktop-client/components/accounts/BalanceHistoryGraph';
-import { Link } from '@desktop-client/components/common/Link';
-import { Notes } from '@desktop-client/components/Notes';
-import {
-  DropHighlight,
-  useDraggable,
-  useDroppable,
-  type OnDragChangeCallback,
-  type OnDropCallback,
-} from '@desktop-client/components/sort';
-import { CellValue } from '@desktop-client/components/spreadsheet/CellValue';
-import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useDragRef } from '@desktop-client/hooks/useDragRef';
-import { useIsTestEnv } from '@desktop-client/hooks/useIsTestEnv';
-import { useNotes } from '@desktop-client/hooks/useNotes';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { openAccountCloseModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { type SheetFields, type Binding } from '@desktop-client/spreadsheet';
+import { useReopenAccountMutation, useUpdateAccountMutation } from '#accounts';
+import { BalanceHistoryGraph } from '#components/accounts/BalanceHistoryGraph';
+import { Link } from '#components/common/Link';
+import { Notes } from '#components/Notes';
+import { DropHighlight, useDraggable, useDroppable } from '#components/sort';
+import type { OnDragChangeCallback, OnDropCallback } from '#components/sort';
+import { CellValue } from '#components/spreadsheet/CellValue';
+import { useContextMenu } from '#hooks/useContextMenu';
+import { useDragRef } from '#hooks/useDragRef';
+import { useIsTestEnv } from '#hooks/useIsTestEnv';
+import { useNotes } from '#hooks/useNotes';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { openAccountCloseModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
+import type { Binding, SheetFields } from '#spreadsheet';
 
 export const accountNameStyle: CSSProperties = {
   marginTop: -2,
@@ -73,6 +65,8 @@ type AccountProps<FieldName extends SheetFields<'account'>> = {
   onDragChange?: OnDragChangeCallback<{ id: string }>;
   onDrop?: OnDropCallback;
   titleAccount?: boolean;
+  isExactPathMatch?: boolean;
+  balanceTestId?: string;
 };
 
 export function Account<FieldName extends SheetFields<'account'>>({
@@ -89,6 +83,8 @@ export function Account<FieldName extends SheetFields<'account'>>({
   onDragChange,
   onDrop,
   titleAccount,
+  isExactPathMatch,
+  balanceTestId,
 }: AccountProps<FieldName>) {
   const isTestEnv = useIsTestEnv();
   const { t } = useTranslation();
@@ -131,6 +127,10 @@ export function Account<FieldName extends SheetFields<'account'>>({
     window.matchMedia('(hover: none)').matches ||
     window.matchMedia('(pointer: coarse)').matches;
   const needsTooltip = !!account?.id && !isTouchDevice;
+  const reopenAccount = useReopenAccountMutation();
+  const updateAccount = useUpdateAccountMutation();
+
+  const balanceCell = <CellValue binding={query} type="financial" />;
 
   const accountRow = (
     <View
@@ -145,6 +145,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
             variant="internal"
             to={to}
             isDisabled={isEditing}
+            isExactPathMatch={isExactPathMatch}
             style={{
               ...accountNameStyle,
               ...style,
@@ -216,14 +217,12 @@ export function Account<FieldName extends SheetFields<'account'>>({
                       onBlur={() => setIsEditing(false)}
                       onEnter={newAccountName => {
                         if (newAccountName.trim() !== '') {
-                          dispatch(
-                            updateAccount({
-                              account: {
-                                ...account,
-                                name: newAccountName,
-                              },
-                            }),
-                          );
+                          updateAccount.mutate({
+                            account: {
+                              ...account,
+                              name: newAccountName,
+                            },
+                          });
                         }
                         setIsEditing(false);
                       }}
@@ -235,7 +234,13 @@ export function Account<FieldName extends SheetFields<'account'>>({
                   name
                 )
               }
-              right={<CellValue binding={query} type="financial" />}
+              right={
+                balanceTestId ? (
+                  <View data-testid={balanceTestId}>{balanceCell}</View>
+                ) : (
+                  balanceCell
+                )
+              }
             />
           </Link>
           {account && (
@@ -252,13 +257,13 @@ export function Account<FieldName extends SheetFields<'account'>>({
                 onMenuSelect={type => {
                   switch (type) {
                     case 'close': {
-                      dispatch(
+                      void dispatch(
                         openAccountCloseModal({ accountId: account.id }),
                       );
                       break;
                     }
                     case 'reopen': {
-                      dispatch(reopenAccount({ id: account.id }));
+                      reopenAccount.mutate({ id: account.id });
                       break;
                     }
                     case 'rename': {
@@ -266,7 +271,9 @@ export function Account<FieldName extends SheetFields<'account'>>({
                       break;
                     }
                     default: {
-                      throw new Error(`Unrecognized menu option: ${type}`);
+                      throw new Error(
+                        `Unrecognized menu option: ${String(type)}`,
+                      );
                     }
                   }
                   setMenuOpen(false);

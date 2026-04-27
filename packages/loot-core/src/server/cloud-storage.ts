@@ -1,20 +1,19 @@
 // @ts-strict-ignore
 import AdmZip from 'adm-zip';
-import { v4 as uuidv4 } from 'uuid';
 
-import * as asyncStorage from '../platform/server/asyncStorage';
-import { fetch } from '../platform/server/fetch';
-import * as fs from '../platform/server/fs';
-import { logger } from '../platform/server/log';
-import * as sqlite from '../platform/server/sqlite';
-import * as monthUtils from '../shared/months';
+import * as asyncStorage from '#platform/server/asyncStorage';
+import { fetch } from '#platform/server/fetch';
+import * as fs from '#platform/server/fs';
+import { logger } from '#platform/server/log';
+import * as sqlite from '#platform/server/sqlite';
+import * as monthUtils from '#shared/months';
 
 import * as encryption from './encryption';
 import {
-  HTTPError,
-  PostError,
   FileDownloadError,
   FileUploadError,
+  HTTPError,
+  PostError,
 } from './errors';
 import { runMutator } from './mutators';
 import { post } from './post';
@@ -287,7 +286,7 @@ export async function upload() {
   }
 
   if (!cloudFileId) {
-    cloudFileId = uuidv4();
+    cloudFileId = crypto.randomUUID();
   }
 
   let res;
@@ -400,38 +399,6 @@ export async function listRemoteFiles(): Promise<RemoteFile[]> {
       hasKey: encryption.hasKey(file.encryptKeyId),
     }))
     .filter(Boolean);
-}
-
-export async function getRemoteFile(
-  fileId: string,
-): Promise<RemoteFile | null> {
-  const userToken = await asyncStorage.getItem('user-token');
-  if (!userToken) {
-    return null;
-  }
-
-  let res;
-  try {
-    res = await fetchJSON(getServer().SYNC_SERVER + '/get-user-file-info', {
-      headers: {
-        'X-ACTUAL-TOKEN': userToken,
-        'X-ACTUAL-FILE-ID': fileId,
-      },
-    });
-  } catch (e) {
-    logger.log('Unexpected error fetching file from server', e);
-    return null;
-  }
-
-  if (res.status === 'error') {
-    logger.log('Error fetching file from server', res);
-    return null;
-  }
-
-  return {
-    ...res.data,
-    hasKey: encryption.hasKey(res.data.encryptKeyId),
-  };
 }
 
 export async function download(cloudFileId) {

@@ -6,8 +6,8 @@ import { Text } from '@actual-app/components/text';
 import { TextOneLine } from '@actual-app/components/text-one-line';
 import { theme } from '@actual-app/components/theme';
 
-import { useAccount } from '@desktop-client/hooks/useAccount';
-import { usePayee } from '@desktop-client/hooks/usePayee';
+import { useAccount } from '#hooks/useAccount';
+import { usePayee } from '#hooks/usePayee';
 
 type DisplayIdProps = {
   type: 'accounts' | 'payees';
@@ -42,7 +42,7 @@ function AccountDisplayId({ id, noneColor }) {
 
 function PayeeDisplayId({ id, noneColor }) {
   const { t } = useTranslation();
-  const payee = usePayee(id);
+  const { data: payee } = usePayee(id);
   return (
     <TextOneLine
       style={payee == null ? { color: noneColor } : null}

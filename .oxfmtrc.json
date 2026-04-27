@@ -4,7 +4,21 @@
   "trailingComma": "all",
   "arrowParens": "avoid",
   "printWidth": 80,
-  "ignorePatterns": [
-    "packages/docs/*" // TOOD: fixme; temporary
-  ]
+  "experimentalSortImports": {
+    "groups": [
+      "react",
+      "builtin",
+      "external",
+      ["parent", "subpath"],
+      "sibling",
+      "index"
+    ],
+    "customGroups": [
+      {
+        "groupName": "react",
+        "elementNamePattern": ["react", "react-dom/*", "react-*"]
+      }
+    ],
+    "newlinesBetween": true
+  }
 }

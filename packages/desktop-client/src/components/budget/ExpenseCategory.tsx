@@ -1,29 +1,27 @@
 // @ts-strict-ignore
-import React, { type ComponentProps } from 'react';
+import React from 'react';
+import type { ComponentProps } from 'react';
 
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
+} from '@actual-app/core/types/models';
 
-import {
-  type CategoryGroupEntity,
-  type CategoryEntity,
-} from 'loot-core/types/models';
+import { DropHighlight, useDraggable, useDroppable } from '#components/sort';
+import type {
+  DragState,
+  OnDragChangeCallback,
+  OnDropCallback,
+} from '#components/sort';
+import { Row } from '#components/table';
+import { useDragRef } from '#hooks/useDragRef';
 
 import { RenderMonths } from './RenderMonths';
 import { SidebarCategory } from './SidebarCategory';
 
 import { useBudgetComponents } from '.';
-
-import {
-  useDraggable,
-  useDroppable,
-  DropHighlight,
-  type DragState,
-  type OnDragChangeCallback,
-  type OnDropCallback,
-} from '@desktop-client/components/sort';
-import { Row } from '@desktop-client/components/table';
-import { useDragRef } from '@desktop-client/hooks/useDragRef';
 
 type ExpenseCategoryProps = {
   cat: CategoryEntity;
@@ -81,7 +79,7 @@ export function ExpenseCategory({
       innerRef={dropRef}
       collapsed
       style={{
-        backgroundColor: theme.tableBackground,
+        backgroundColor: theme.budgetCurrentMonth,
         opacity: cat.hidden || categoryGroup?.hidden ? 0.5 : undefined,
       }}
     >

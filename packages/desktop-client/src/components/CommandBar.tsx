@@ -1,12 +1,5 @@
-import {
-  type ComponentType,
-  type ReactNode,
-  type SVGProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ComponentType, ReactNode, SVGProps } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import {
@@ -29,24 +22,21 @@ import { View } from '@actual-app/components/view';
 import { css } from '@emotion/css';
 import { Command } from 'cmdk';
 
-import { CellValue, CellValueText } from './spreadsheet/CellValue';
-
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { useModalState } from '@desktop-client/hooks/useModalState';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useReports } from '@desktop-client/hooks/useReports';
-import type {
-  Binding,
-  SheetFields,
-  SheetNames,
-} from '@desktop-client/spreadsheet';
+import { useAccounts } from '#hooks/useAccounts';
+import { useDashboardPages } from '#hooks/useDashboardPages';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { useModalState } from '#hooks/useModalState';
+import { useNavigate } from '#hooks/useNavigate';
+import { useReports } from '#hooks/useReports';
+import type { Binding, SheetFields, SheetNames } from '#spreadsheet';
 import {
   accountBalance,
   allAccountBalance,
   offBudgetAccountBalance,
   onBudgetAccountBalance,
-} from '@desktop-client/spreadsheet/bindings';
+} from '#spreadsheet/bindings';
+
+import { CellValue, CellValueText } from './spreadsheet/CellValue';
 
 type SearchableItem = {
   id: string;
@@ -148,8 +138,9 @@ export function CommandBar() {
     if (!open) setSearch('');
   }, [open]);
 
-  const allAccounts = useAccounts();
-  const { data: customReports } = useReports();
+  const { data: allAccounts = [] } = useAccounts();
+  const { data: customReports = [] } = useReports();
+  const { data: dashboardPages = [] } = useDashboardPages();
 
   const accounts = allAccounts.filter(acc => !acc.closed);
 
@@ -173,7 +164,7 @@ export function CommandBar() {
   const handleNavigate = useCallback(
     (path: string) => {
       setOpen(false);
-      navigate(path);
+      void navigate(path);
     },
     [navigate],
   );
@@ -226,6 +217,15 @@ export function CommandBar() {
         })),
       ],
       onSelect: ({ id }) => handleNavigate(`/accounts/${id}`),
+    },
+    {
+      key: 'reports',
+      heading: t('Reports'),
+      items: dashboardPages.map(dashboardPage => ({
+        ...dashboardPage,
+        Icon: SvgReports,
+      })),
+      onSelect: ({ id }) => handleNavigate(`/reports/${id}`),
     },
     {
       key: 'reports-custom',

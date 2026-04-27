@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 
 import { Button } from '@actual-app/components/button';
@@ -8,16 +8,16 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
-import { unlinkAccount } from '@desktop-client/accounts/accountsSlice';
-import { BankSyncCheckboxOptions } from '@desktop-client/components/banksync/BankSyncCheckboxOptions';
-import { FieldMapping } from '@desktop-client/components/banksync/FieldMapping';
-import { useBankSyncAccountSettings } from '@desktop-client/components/banksync/useBankSyncAccountSettings';
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import { MobilePageHeader, Page } from '@desktop-client/components/Page';
-import { useAccount } from '@desktop-client/hooks/useAccount';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { useUnlinkAccountMutation } from '#accounts';
+import { BankSyncCheckboxOptions } from '#components/banksync/BankSyncCheckboxOptions';
+import { FieldMapping } from '#components/banksync/FieldMapping';
+import { useBankSyncAccountSettings } from '#components/banksync/useBankSyncAccountSettings';
+import { MobileBackButton } from '#components/mobile/MobileBackButton';
+import { MobilePageHeader, Page } from '#components/Page';
+import { useAccount } from '#hooks/useAccount';
+import { useNavigate } from '#hooks/useNavigate';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
 export function MobileBankSyncAccountEditPage() {
   const { t } = useTranslation();
@@ -37,6 +37,8 @@ export function MobileBankSyncAccountEditPage() {
     setReimportDeleted,
     importTransactions,
     setImportTransactions,
+    updateDates,
+    setUpdateDates,
     mappings,
     setMapping,
     fields,
@@ -44,14 +46,15 @@ export function MobileBankSyncAccountEditPage() {
   } = useBankSyncAccountSettings(accountId!);
 
   const handleCancel = () => {
-    navigate('/bank-sync');
+    void navigate('/bank-sync');
   };
 
   const handleSave = async () => {
     saveSettings();
-    navigate('/bank-sync');
+    void navigate('/bank-sync');
   };
 
+  const unlinkAccount = useUnlinkAccountMutation();
   const handleUnlink = () => {
     dispatch(
       pushModal({
@@ -62,8 +65,12 @@ export function MobileBankSyncAccountEditPage() {
             isViewBankSyncSettings: true,
             onUnlink: () => {
               if (accountId) {
-                dispatch(unlinkAccount({ id: accountId }));
-                navigate('/bank-sync');
+                unlinkAccount.mutate(
+                  { id: accountId },
+                  {
+                    onSuccess: () => navigate('/bank-sync'),
+                  },
+                );
               }
             },
           },
@@ -146,6 +153,8 @@ export function MobileBankSyncAccountEditPage() {
               setReimportDeleted={setReimportDeleted}
               importTransactions={importTransactions}
               setImportTransactions={setImportTransactions}
+              updateDates={updateDates}
+              setUpdateDates={setUpdateDates}
               helpMode="mobile"
             />
           </View>

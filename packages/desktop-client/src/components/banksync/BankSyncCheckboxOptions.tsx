@@ -1,5 +1,6 @@
-import React, { useState, type ReactNode } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { useState } from 'react';
+import type { ReactNode } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SvgQuestion } from '@actual-app/components/icons/v1';
@@ -8,8 +9,8 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 
-import { LabeledCheckbox } from '@desktop-client/components/forms/LabeledCheckbox';
-import { ToggleField } from '@desktop-client/components/mobile/MobileForms';
+import { LabeledCheckbox } from '#components/forms/LabeledCheckbox';
+import { ToggleField } from '#components/mobile/MobileForms';
 
 type CheckboxOptionProps = {
   id: string;
@@ -152,6 +153,8 @@ type BankSyncCheckboxOptionsProps = {
   setReimportDeleted: (value: boolean) => void;
   importTransactions: boolean;
   setImportTransactions: (value: boolean) => void;
+  updateDates: boolean;
+  setUpdateDates: (value: boolean) => void;
   helpMode?: 'desktop' | 'mobile';
 };
 
@@ -164,6 +167,8 @@ export function BankSyncCheckboxOptions({
   setReimportDeleted,
   importTransactions,
   setImportTransactions,
+  updateDates,
+  setUpdateDates,
   helpMode = 'desktop',
 }: BankSyncCheckboxOptionsProps) {
   const { t } = useTranslation();
@@ -213,6 +218,18 @@ export function BankSyncCheckboxOptions({
         helpMode={helpMode}
       >
         <Trans>Investment Account</Trans>
+      </CheckboxOptionWithHelp>
+
+      <CheckboxOptionWithHelp
+        id="form_update_dates"
+        checked={updateDates}
+        onChange={() => setUpdateDates(!updateDates)}
+        helpText={t(
+          'By enabling this, the transaction date will be overwritten by the one provided by the bank.',
+        )}
+        helpMode={helpMode}
+      >
+        <Trans>Update Dates</Trans>
       </CheckboxOptionWithHelp>
     </>
   );

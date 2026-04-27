@@ -1,4 +1,5 @@
-import { type CSSProperties, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -6,32 +7,143 @@ import { AnimatedLoading } from '@actual-app/components/icons/AnimatedLoading';
 import { SpaceBetween } from '@actual-app/components/space-between';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import { dayFromDate, firstDayOfMonth } from '@actual-app/core/shared/months';
+import { q } from '@actual-app/core/shared/query';
+import type {
+  CategoryGroupEntity,
+  ScheduleEntity,
+} from '@actual-app/core/types/models';
+import type { Template } from '@actual-app/core/types/models/templates';
 import uniqueId from 'lodash/uniqueId';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { q } from 'loot-core/shared/query';
-import {
-  type CategoryGroupEntity,
-  type ScheduleEntity,
-} from 'loot-core/types/models';
-import type { Template } from 'loot-core/types/models/templates';
+import { Warning } from '#components/alerts';
+import { BudgetAutomation } from '#components/budget/goals/BudgetAutomation';
+import type { DisplayTemplateType } from '#components/budget/goals/constants';
+import { DEFAULT_PRIORITY } from '#components/budget/goals/reducer';
+import { useBudgetAutomationCategories } from '#components/budget/goals/useBudgetAutomationCategories';
+import { Link } from '#components/common/Link';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { useBudgetAutomations } from '#hooks/useBudgetAutomations';
+import { useCategory } from '#hooks/useCategory';
+import { useNotes } from '#hooks/useNotes';
+import { useSchedules } from '#hooks/useSchedules';
+import { pushModal } from '#modals/modalsSlice';
+import { useDispatch } from '#redux';
 
-import { Warning } from '@desktop-client/components/alerts';
-import { BudgetAutomation } from '@desktop-client/components/budget/goals/BudgetAutomation';
-import { DEFAULT_PRIORITY } from '@desktop-client/components/budget/goals/reducer';
-import { useBudgetAutomationCategories } from '@desktop-client/components/budget/goals/useBudgetAutomationCategories';
-import { Link } from '@desktop-client/components/common/Link';
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { useBudgetAutomations } from '@desktop-client/hooks/useBudgetAutomations';
-import { useCategory } from '@desktop-client/hooks/useCategory';
-import { useNotes } from '@desktop-client/hooks/useNotes';
-import { useSchedules } from '@desktop-client/hooks/useSchedules';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { useDispatch } from '@desktop-client/redux';
+type AutomationEntry = {
+  id: string;
+  template: Template;
+  displayType: DisplayTemplateType;
+};
+
+function getDisplayTypeFromTemplate(template: Template): DisplayTemplateType {
+  switch (template.type) {
+    case 'percentage':
+      return 'percentage';
+    case 'schedule':
+      return 'schedule';
+    case 'periodic':
+    case 'simple':
+      return 'week';
+    case 'limit':
+      return 'limit';
+    case 'refill':
+      return 'refill';
+    case 'average':
+    case 'copy':
+      return 'historical';
+    default:
+      return 'week';
+  }
+}
+
+function createAutomationEntry(
+  template: Template,
+  displayType: DisplayTemplateType,
+): AutomationEntry {
+  return {
+    id: uniqueId('automation-'),
+    template,
+    displayType,
+  };
+}
+
+export function migrateTemplatesToAutomations(
+  templates: Template[],
+): AutomationEntry[] {
+  const entries: AutomationEntry[] = [];
+
+  templates.forEach(template => {
+    // Expand simple templates into limit, refill, and/or periodic templates
+    if (template.type === 'simple') {
+      let hasExpandedTemplate = false;
+
+      if (template.limit) {
+        hasExpandedTemplate = true;
+        entries.push(
+          createAutomationEntry(
+            {
+              type: 'limit',
+              amount: template.limit.amount,
+              hold: template.limit.hold,
+              period: template.limit.period,
+              start: template.limit.start,
+              directive: 'template',
+              priority: null,
+            },
+            'limit',
+          ),
+        );
+        entries.push(
+          createAutomationEntry(
+            {
+              type: 'refill',
+              directive: 'template',
+              priority: template.priority,
+            },
+            'refill',
+          ),
+        );
+      }
+      // If it has a monthly amount, create a periodic template
+      if (template.monthly != null && template.monthly !== 0) {
+        hasExpandedTemplate = true;
+        entries.push(
+          createAutomationEntry(
+            {
+              type: 'periodic',
+              amount: template.monthly,
+              period: {
+                period: 'month',
+                amount: 1,
+              },
+              starting: dayFromDate(firstDayOfMonth(new Date())),
+              directive: 'template',
+              priority: template.priority,
+            },
+            'week',
+          ),
+        );
+      }
+
+      if (!hasExpandedTemplate) {
+        entries.push(
+          createAutomationEntry(template, getDisplayTypeFromTemplate(template)),
+        );
+      }
+
+      return;
+    }
+
+    // For all other template types, create a single entry
+    entries.push(
+      createAutomationEntry(template, getDisplayTypeFromTemplate(template)),
+    );
+  });
+
+  return entries;
+}
 
 function BudgetAutomationList({
   automations,
@@ -40,47 +152,67 @@ function BudgetAutomationList({
   categories,
   style,
 }: {
-  automations: Template[];
-  setAutomations: (fn: (prev: Template[]) => Template[]) => void;
+  automations: AutomationEntry[];
+  setAutomations: (fn: (prev: AutomationEntry[]) => AutomationEntry[]) => void;
   schedules: readonly ScheduleEntity[];
   categories: CategoryGroupEntity[];
   style?: CSSProperties;
 }) {
-  const [automationIds, setAutomationIds] = useState(() => {
-    // automations don't have ids, so we need to generate them
-    return automations.map(() => uniqueId('automation-'));
-  });
-
   const onAdd = () => {
-    const newId = uniqueId('automation-');
-    setAutomationIds(prevIds => [...prevIds, newId]);
     setAutomations(prev => [
       ...prev,
-      {
-        type: 'simple',
-        monthly: 5,
-        directive: 'template',
-        priority: DEFAULT_PRIORITY,
-      },
+      createAutomationEntry(
+        {
+          type: 'periodic',
+          amount: 500,
+          period: {
+            period: 'month',
+            amount: 1,
+          },
+          starting: dayFromDate(firstDayOfMonth(new Date())),
+          directive: 'template',
+          priority: DEFAULT_PRIORITY,
+        },
+        'week',
+      ),
+    ]);
+  };
+  const onAddLimit = () => {
+    setAutomations(prev => [
+      ...prev,
+      createAutomationEntry(
+        {
+          directive: 'template',
+          type: 'limit',
+          amount: 500,
+          period: 'monthly',
+          hold: false,
+          priority: null,
+        },
+        'limit',
+      ),
     ]);
   };
   const onDelete = (index: number) => () => {
     setAutomations(prev => [...prev.slice(0, index), ...prev.slice(index + 1)]);
-    setAutomationIds(prev => [
-      ...prev.slice(0, index),
-      ...prev.slice(index + 1),
-    ]);
   };
 
   const onSave = useCallback(
-    (index: number) => (template: Template) => {
-      setAutomations(prev =>
-        prev.map((oldAutomation, mapIndex) =>
-          mapIndex === index ? template : oldAutomation,
-        ),
-      );
-    },
+    (index: number) =>
+      (template: Template, displayType: DisplayTemplateType) => {
+        setAutomations(prev =>
+          prev.map((oldAutomation, mapIndex) =>
+            mapIndex === index
+              ? { ...oldAutomation, template, displayType }
+              : oldAutomation,
+          ),
+        );
+      },
     [setAutomations],
+  );
+
+  const hasLimitAutomation = automations.some(
+    automation => automation.displayType === 'limit',
   );
 
   return (
@@ -96,12 +228,16 @@ function BudgetAutomationList({
     >
       {automations.map((automation, index) => (
         <BudgetAutomation
-          key={automationIds[index]}
+          key={automation.id}
           onSave={onSave(index)}
           onDelete={onDelete(index)}
-          template={automation}
+          template={automation.template}
           categories={categories}
           schedules={schedules}
+          hasLimitAutomation={hasLimitAutomation}
+          onAddLimitAutomation={
+            automation.displayType === 'refill' ? onAddLimit : undefined
+          }
           readOnlyStyle={{
             color: theme.pillText,
             backgroundColor: theme.pillBackground,
@@ -180,12 +316,20 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
 
-  const [automations, setAutomations] = useState<Record<string, Template[]>>(
-    {},
-  );
+  const [automations, setAutomations] = useState<
+    Record<string, AutomationEntry[]>
+  >({});
+  const onLoaded = useCallback((result: Record<string, Template[]>) => {
+    const next: Record<string, AutomationEntry[]> = {};
+    for (const [id, templates] of Object.entries(result)) {
+      next[id] = migrateTemplatesToAutomations(templates);
+    }
+    setAutomations(next);
+  }, []);
+
   const { loading } = useBudgetAutomations({
     categoryId,
-    onLoaded: setAutomations,
+    onLoaded,
   });
 
   const schedulesQuery = useMemo(() => q('schedules').select('*'), []);
@@ -194,7 +338,7 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
   });
 
   const categories = useBudgetAutomationCategories();
-  const currentCategory = useCategory(categoryId);
+  const { data: currentCategory } = useCategory(categoryId);
 
   const needsMigration = currentCategory?.template_settings?.source !== 'ui';
 
@@ -204,11 +348,12 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
       return;
     }
 
+    const templates = automations[categoryId].map(({ template }) => template);
     await send('budget/set-category-automations', {
       categoriesWithTemplates: [
         {
           id: categoryId,
-          templates: automations[categoryId],
+          templates,
         },
       ],
       source: 'ui',
@@ -223,7 +368,7 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
         style: { width: 850, height: 650, paddingBottom: 20 },
       }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <SpaceBetween
           direction="vertical"
           wrap={false}
@@ -234,7 +379,7 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
             title={t('Budget automations: {{category}}', {
               category: currentCategory?.name,
             })}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           {loading ? (
             <View
@@ -251,13 +396,18 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
               <AnimatedLoading style={{ width: 20, height: 20 }} />
             </View>
           ) : (
-            <SpaceBetween align="stretch" direction="vertical">
+            <SpaceBetween align="stretch" direction="vertical" wrap={false}>
               {needsMigration && (
-                <BudgetAutomationMigrationWarning categoryId={categoryId} />
+                <BudgetAutomationMigrationWarning
+                  categoryId={categoryId}
+                  style={{ flexShrink: 0 }}
+                />
               )}
               <BudgetAutomationList
                 automations={automations[categoryId] || []}
-                setAutomations={(cb: (prev: Template[]) => Template[]) => {
+                setAutomations={(
+                  cb: (prev: AutomationEntry[]) => AutomationEntry[],
+                ) => {
                   setAutomations(prev => ({
                     ...prev,
                     [categoryId]: cb(prev[categoryId] || []),
@@ -285,7 +435,10 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
                     pushModal({
                       modal: {
                         name: 'category-automations-unmigrate',
-                        options: { categoryId, templates },
+                        options: {
+                          categoryId,
+                          templates: templates.map(({ template }) => template),
+                        },
                       },
                     }),
                   );
@@ -295,10 +448,13 @@ export function BudgetAutomationsModal({ categoryId }: { categoryId: string }) {
               </Link>
             )}
             {/* <View style={{ flex: 1 }} /> */}
-            <Button onPress={close}>
+            <Button onPress={() => state.close()}>
               <Trans>Cancel</Trans>
             </Button>
-            <Button variant="primary" onPress={() => onSave(close)}>
+            <Button
+              variant="primary"
+              onPress={() => onSave(() => state.close())}
+            >
               <Trans>Save</Trans>
             </Button>
           </SpaceBetween>

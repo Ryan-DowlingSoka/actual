@@ -2,15 +2,14 @@
 import React from 'react';
 
 import { theme } from '@actual-app/components/theme';
+import type { CategoryGroupEntity } from '@actual-app/core/types/models';
 
-import { type CategoryGroupEntity } from 'loot-core/types/models';
+import { Row } from '#components/table';
 
 import { RenderMonths } from './RenderMonths';
 import { SidebarGroup } from './SidebarGroup';
 
 import { useBudgetComponents } from '.';
-
-import { Row } from '@desktop-client/components/table';
 
 type IncomeGroupProps = {
   group: CategoryGroupEntity;
@@ -37,7 +36,7 @@ export function IncomeGroup({
       collapsed
       style={{
         fontWeight: 600,
-        backgroundColor: theme.tableRowHeaderBackground,
+        backgroundColor: theme.budgetHeaderCurrentMonth, //use budget color
       }}
     >
       <SidebarGroup

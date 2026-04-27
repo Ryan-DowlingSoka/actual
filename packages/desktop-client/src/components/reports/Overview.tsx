@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Dialog, DialogTrigger } from 'react-aria-components';
-import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import { ErrorBoundary } from 'react-error-boundary';
+import ReactGridLayout from 'react-grid-layout';
+import type { Layout } from 'react-grid-layout';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
@@ -10,86 +12,121 @@ import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { SvgDotsHorizontalTriple } from '@actual-app/components/icons/v1';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
-import { breakpoints } from '@actual-app/components/tokens';
+import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type {
+  CustomReportWidget,
+  DashboardPageEntity,
+  DashboardWidgetEntity,
+  ExportImportDashboard,
+  MarkdownWidget,
+} from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MobilePageHeader, Page } from '#components/Page';
+import { useAccounts } from '#hooks/useAccounts';
 import {
-  type CustomReportWidget,
-  type ExportImportDashboard,
-  type MarkdownWidget,
-  type Widget,
-} from 'loot-core/types/models';
+  useDashboardPages,
+  useDashboardPageWidgets,
+} from '#hooks/useDashboardPages';
+import { useFeatureFlag } from '#hooks/useFeatureFlag';
+import { useNavigate } from '#hooks/useNavigate';
+import { useReports } from '#hooks/useReports';
+import { useResizeObserver } from '#hooks/useResizeObserver';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { useUndo } from '#hooks/useUndo';
+import {
+  addNotification,
+  removeNotification,
+} from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import {
+  useAddDashboardWidgetMutation,
+  useCopyDashboardWidgetMutation,
+  useDeleteDashboardPageMutation,
+  useImportDashboardPageMutation,
+  useRemoveDashboardWidgetMutation,
+  useResetDashboardPageMutation,
+  useUpdateDashboardWidgetMutation,
+  useUpdateDashboardWidgetsMutation,
+} from '#reports/mutations';
 
 import { NON_DRAGGABLE_AREA_CLASS_NAME } from './constants';
+import { DashboardHeader } from './DashboardHeader';
+import './overview.scss';
+import { DashboardSelector } from './DashboardSelector';
 import { LoadingIndicator } from './LoadingIndicator';
+import { AgeOfMoneyCard } from './reports/AgeOfMoneyCard';
+import { BudgetAnalysisCard } from './reports/BudgetAnalysisCard';
 import { CalendarCard } from './reports/CalendarCard';
 import { CashFlowCard } from './reports/CashFlowCard';
 import { CrossoverCard } from './reports/CrossoverCard';
 import { CustomReportListCards } from './reports/CustomReportListCards';
 import { FormulaCard } from './reports/FormulaCard';
 import { MarkdownCard } from './reports/MarkdownCard';
+import { MissingReportCard } from './reports/MissingReportCard';
 import { NetWorthCard } from './reports/NetWorthCard';
+import { SankeyCard } from './reports/SankeyCard';
 import { SpendingCard } from './reports/SpendingCard';
-import './overview.scss';
 import { SummaryCard } from './reports/SummaryCard';
 
-import { MOBILE_NAV_HEIGHT } from '@desktop-client/components/mobile/MobileNavTabs';
-import {
-  MobilePageHeader,
-  Page,
-  PageHeader,
-} from '@desktop-client/components/Page';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useDashboard } from '@desktop-client/hooks/useDashboard';
-import { useFeatureFlag } from '@desktop-client/hooks/useFeatureFlag';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useReports } from '@desktop-client/hooks/useReports';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { useUndo } from '@desktop-client/hooks/useUndo';
-import {
-  addNotification,
-  removeNotification,
-} from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
-
-function isCustomReportWidget(widget: Widget): widget is CustomReportWidget {
+function isCustomReportWidget(
+  widget: DashboardWidgetEntity,
+): widget is CustomReportWidget {
   return widget.type === 'custom-report';
 }
 
-export function Overview() {
+type OverviewProps = {
+  dashboard: DashboardPageEntity;
+};
+
+export function Overview({ dashboard }: OverviewProps) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const [_firstDayOfWeekIdx] = useSyncedPref('firstDayOfWeekIdx');
   const firstDayOfWeekIdx = _firstDayOfWeekIdx || '0';
   const crossoverReportEnabled = useFeatureFlag('crossoverReport');
+  const ageOfMoneyReportEnabled = useFeatureFlag('ageOfMoneyReport');
+  const budgetAnalysisReportEnabled = useFeatureFlag('budgetAnalysisReport');
 
   const formulaMode = useFeatureFlag('formulaMode');
 
   const [isImporting, setIsImporting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentBreakpoint, setCurrentBreakpoint] = useState<
-    'mobile' | 'desktop'
-  >('desktop');
+  const { isNarrowWidth } = useResponsive();
+  const currentBreakpoint: 'mobile' | 'desktop' = isNarrowWidth
+    ? 'mobile'
+    : 'desktop';
 
-  const { data: customReports, isLoading: isCustomReportsLoading } =
+  const { data: customReports = [], isPending: isCustomReportsLoading } =
     useReports();
-  const { data: widgets, isLoading: isWidgetsLoading } = useDashboard();
+
+  const sankeyFeatureFlag = useFeatureFlag('sankeyReport');
 
   const customReportMap = useMemo(
     () => new Map(customReports.map(report => [report.id, report])),
     [customReports],
   );
+  const { data: dashboardPages = [], isPending: isDashboardPageLoading } =
+    useDashboardPages();
 
-  const isLoading = isCustomReportsLoading || isWidgetsLoading;
+  const { data: widgets = [], isPending: isWidgetsLoading } =
+    useDashboardPageWidgets(dashboard.id);
 
-  const { isNarrowWidth } = useResponsive();
+  const isLoading =
+    isCustomReportsLoading || isWidgetsLoading || isDashboardPageLoading;
+
   const navigate = useNavigate();
 
   const location = useLocation();
   sessionStorage.setItem('url', location.pathname);
+
+  const [containerWidth, setContainerWidth] = useState(0);
+  const handleResize = useCallback((contentRect: DOMRectReadOnly) => {
+    setContainerWidth(Math.floor(contentRect.width));
+  }, []);
+  const containerRef = useResizeObserver<HTMLDivElement>(handleResize);
+  const isMounted = containerWidth > 0;
 
   const mobileLayout = useMemo(() => {
     if (!widgets || widgets.length === 0) {
@@ -113,7 +150,6 @@ export function Overview() {
       currentY += widget.height;
 
       return {
-        ...widget,
         i: widget.id,
         x: 0,
         y: itemY, // Calculate correct y co-ordinate to prevent react-grid-layout's auto-compacting behaviour
@@ -127,15 +163,26 @@ export function Overview() {
     if (!widgets) return [];
     return widgets.map(widget => ({
       i: widget.id,
+      x: widget.x,
+      y: widget.y,
       w: widget.width,
       h: widget.height,
       minW:
         isCustomReportWidget(widget) || widget.type === 'markdown-card' ? 2 : 3,
       minH:
         isCustomReportWidget(widget) || widget.type === 'markdown-card' ? 1 : 2,
-      ...widget,
     }));
   }, [widgets]);
+
+  const currentLayout = useMemo(
+    () => (currentBreakpoint === 'desktop' ? desktopLayout : mobileLayout),
+    [currentBreakpoint, desktopLayout, mobileLayout],
+  );
+
+  const widgetMap = useMemo(
+    () => new Map((widgets ?? []).map(widget => [widget.id, widget])),
+    [widgets],
+  );
 
   const closeNotifications = () => {
     dispatch(removeNotification({ id: 'import' }));
@@ -173,58 +220,72 @@ export function Overview() {
     );
   };
 
-  const onBreakpointChange = (breakpoint: 'mobile' | 'desktop') => {
-    setCurrentBreakpoint(breakpoint);
-  };
+  const resetDashboardPageMutation = useResetDashboardPageMutation();
 
   const onResetDashboard = async () => {
     setIsImporting(true);
-    await send('dashboard-reset');
-    setIsImporting(false);
 
-    onDispatchSucessNotification(
-      t(
-        "Dashboard has been successfully reset to default state. Don't like what you see? You can always press [ctrl+z](#undo) to undo.",
-      ),
+    resetDashboardPageMutation.mutate(
+      {
+        id: dashboard.id,
+      },
+      {
+        onSettled: () => {
+          setIsImporting(false);
+        },
+        onSuccess: () => {
+          onDispatchSucessNotification(
+            t(
+              "Dashboard has been successfully reset to default state. Don't like what you see? You can always press [ctrl+z](#undo) to undo.",
+            ),
+          );
+        },
+      },
     );
   };
 
-  const onLayoutChange = (newLayout: Layout[]) => {
+  const updateDashboardWidgetsMutation = useUpdateDashboardWidgetsMutation();
+
+  const onLayoutChange = (newLayout: Layout) => {
     if (!isEditing) {
       return;
     }
 
-    send(
-      'dashboard-update',
-      newLayout.map(item => ({
+    updateDashboardWidgetsMutation.mutate({
+      widgets: newLayout.map(item => ({
         id: item.i,
         width: item.w,
         height: item.h,
         x: item.x,
         y: item.y,
       })),
-    );
-  };
-
-  const onAddWidget = <T extends Widget>(
-    type: T['type'],
-    meta: T['meta'] = null,
-  ) => {
-    send('dashboard-add-widget', {
-      type,
-      width: 4,
-      height: 2,
-      meta,
     });
   };
 
+  const addDashboardWidgetMutation = useAddDashboardWidgetMutation();
+
+  const onAddWidget = <T extends DashboardWidgetEntity>(
+    type: T['type'],
+    meta: T['meta'] = null,
+  ) => {
+    addDashboardWidgetMutation.mutate({
+      widget: {
+        type,
+        width: 4,
+        height: 2,
+        meta,
+        dashboard_page_id: dashboard.id,
+      },
+    });
+  };
+
+  const removeDashboardWidgetMutation = useRemoveDashboardWidgetMutation();
+
   const onRemoveWidget = (widgetId: string) => {
-    send('dashboard-remove-widget', widgetId);
+    removeDashboardWidgetMutation.mutate({ id: widgetId });
   };
 
   const onExport = () => {
-    const widgetMap = new Map(widgets.map(item => [item.id, item]));
-
     const data = {
       version: 1,
       widgets: desktopLayout.map(item => {
@@ -253,12 +314,15 @@ export function Overview() {
       }),
     } satisfies ExportImportDashboard;
 
-    window.Actual.saveFile(
+    void window.Actual.saveFile(
       JSON.stringify(data, null, 2),
       'dashboard.json',
       t('Export Dashboard'),
     );
   };
+
+  const importDashboardPageMutation = useImportDashboardPageMutation();
+
   const onImport = async () => {
     const openFileDialog = window.Actual.openFileDialog;
 
@@ -276,7 +340,7 @@ export function Overview() {
       return;
     }
 
-    const [filepath] = await openFileDialog({
+    const [filePath] = await openFileDialog({
       properties: ['openFile'],
       filters: [
         {
@@ -288,65 +352,110 @@ export function Overview() {
 
     closeNotifications();
     setIsImporting(true);
-    const res = await send('dashboard-import', { filepath });
-    setIsImporting(false);
 
-    if ('error' in res) {
-      switch (res.error) {
-        case 'json-parse-error':
-          dispatch(
-            addNotification({
-              notification: {
-                id: 'import',
-                type: 'error',
-                message: t('Failed parsing the imported JSON.'),
-              },
-            }),
+    importDashboardPageMutation.mutate(
+      {
+        filePath,
+        dashboardPageId: dashboard.id,
+      },
+      {
+        onSettled: () => {
+          setIsImporting(false);
+        },
+        onSuccess: () => {
+          onDispatchSucessNotification(
+            t(
+              "Dashboard has been successfully imported. Don't like what you see? You can always press [ctrl+z](#undo) to undo.",
+            ),
           );
-          break;
+        },
+        onError: error => {
+          const originalError = error.cause;
+          if (originalError instanceof Error) {
+            switch (originalError.cause) {
+              case 'json-parse-error':
+                dispatch(
+                  addNotification({
+                    notification: {
+                      id: 'import',
+                      type: 'error',
+                      message: t('Failed parsing the imported JSON.'),
+                    },
+                  }),
+                );
+                break;
 
-        case 'validation-error':
-          dispatch(
-            addNotification({
-              notification: {
-                id: 'import',
-                type: 'error',
-                message: res.message,
-              },
-            }),
-          );
-          break;
+              case 'validation-error':
+                dispatch(
+                  addNotification({
+                    notification: {
+                      id: 'import',
+                      type: 'error',
+                      message: error.message,
+                    },
+                  }),
+                );
+                break;
 
-        default:
-          dispatch(
-            addNotification({
-              notification: {
-                id: 'import',
-                type: 'error',
-                message: t('Failed importing the dashboard file.'),
-              },
-            }),
-          );
-          break;
-      }
-      return;
-    }
-
-    onDispatchSucessNotification(
-      t(
-        "Dashboard has been successfully imported. Don't like what you see? You can always press [ctrl+z](#undo) to undo.",
-      ),
+              default:
+                dispatch(
+                  addNotification({
+                    notification: {
+                      id: 'import',
+                      type: 'error',
+                      message: t('Failed importing the dashboard file.'),
+                    },
+                  }),
+                );
+                break;
+            }
+          }
+        },
+      },
     );
   };
 
-  const onMetaChange = (widget: { i: string }, newMeta: Widget['meta']) => {
-    send('dashboard-update-widget', {
-      id: widget.i,
-      meta: newMeta,
+  const updateDashboardWidgetMutation = useUpdateDashboardWidgetMutation();
+
+  const onMetaChange = (
+    widget: { i: string },
+    newMeta: DashboardWidgetEntity['meta'],
+  ) => {
+    updateDashboardWidgetMutation.mutate({
+      widget: {
+        id: widget.i,
+        meta: newMeta,
+      },
     });
   };
 
-  const accounts = useAccounts();
+  const copyDashboardWidgetMutation = useCopyDashboardWidgetMutation();
+
+  const onCopyWidget = (widgetId: string, targetDashboardId: string) => {
+    copyDashboardWidgetMutation.mutate({
+      id: widgetId,
+      targetDashboardPageId: targetDashboardId,
+    });
+  };
+
+  const deleteDashboardPageMutation = useDeleteDashboardPageMutation();
+
+  const onDeleteDashboard = async (id: string) => {
+    deleteDashboardPageMutation.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          const nextDashboard = dashboardPages.find(d => d.id !== id);
+          // NOTE: This should hold since invariant dashboard_pages > 1
+          if (nextDashboard) {
+            void navigate(`/reports/${nextDashboard.id}`);
+          }
+        },
+      },
+    );
+  };
+
+  const { data: accounts = [] } = useAccounts();
 
   if (isLoading) {
     return <LoadingIndicator message={t('Loading reports...')} />;
@@ -356,26 +465,69 @@ export function Overview() {
     <Page
       header={
         isNarrowWidth ? (
-          <MobilePageHeader title={t('Reports')} />
+          <View>
+            <MobilePageHeader
+              title={
+                <View
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <Trans>Reports</Trans>: {dashboard.name}
+                </View>
+              }
+            />
+            <View
+              style={{
+                padding: '5px',
+                borderBottom: '1px solid ' + theme.pillBorder,
+              }}
+            >
+              <DashboardSelector
+                dashboards={dashboardPages}
+                currentDashboard={dashboard}
+              />
+            </View>
+          </View>
         ) : (
           <View
             style={{
               flexDirection: 'row',
               justifyContent: 'space-between',
               marginRight: 15,
+              alignItems: 'center',
             }}
           >
-            <PageHeader title={t('Reports')} />
+            <DashboardHeader dashboard={dashboard} />
 
             <View
               style={{
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 gap: 5,
+                alignItems: 'stretch',
               }}
             >
               {currentBreakpoint === 'desktop' && (
                 <>
+                  {/* Dashboard Selector */}
+                  <DashboardSelector
+                    dashboards={dashboardPages}
+                    currentDashboard={dashboard}
+                  />
+
+                  <View
+                    style={{
+                      height: 'auto',
+                      borderLeft: `1.5px solid ${theme.pillBorderDark}`,
+                      borderRadius: 0.75,
+                      marginLeft: 7,
+                      marginRight: 7,
+                    }}
+                  />
+
                   <DialogTrigger>
                     <Button variant="primary" isDisabled={isImporting}>
                       <Trans>Add new widget</Trans>
@@ -387,7 +539,7 @@ export function Overview() {
                           slot="close"
                           onMenuSelect={item => {
                             if (item === 'custom-report') {
-                              navigate('/reports/custom');
+                              void navigate('/reports/custom');
                               return;
                             }
 
@@ -430,10 +582,26 @@ export function Overview() {
                                   },
                                 ]
                               : []),
+                            ...(ageOfMoneyReportEnabled
+                              ? [
+                                  {
+                                    name: 'age-of-money-card' as const,
+                                    text: t('Age of Money'),
+                                  },
+                                ]
+                              : []),
                             {
                               name: 'spending-card' as const,
                               text: t('Spending analysis'),
                             },
+                            ...(budgetAnalysisReportEnabled
+                              ? [
+                                  {
+                                    name: 'budget-analysis-card' as const,
+                                    text: t('Budget analysis'),
+                                  },
+                                ]
+                              : []),
                             {
                               name: 'markdown-card' as const,
                               text: t('Text widget'),
@@ -454,6 +622,14 @@ export function Overview() {
                                   },
                                 ]
                               : []),
+                            ...(sankeyFeatureFlag
+                              ? [
+                                  {
+                                    name: 'sankey-card' as const,
+                                    text: t('Sankey card'),
+                                  },
+                                ]
+                              : []),
                             {
                               name: 'custom-report' as const,
                               text: t('New custom report'),
@@ -471,6 +647,7 @@ export function Overview() {
                     </Popover>
                   </DialogTrigger>
 
+                  {/* The Editing Button */}
                   {isEditing ? (
                     <Button
                       isDisabled={isImporting}
@@ -487,6 +664,7 @@ export function Overview() {
                     </Button>
                   )}
 
+                  {/* The Menu */}
                   <DialogTrigger>
                     <Button variant="bare" aria-label={t('Menu')}>
                       <SvgDotsHorizontalTriple
@@ -502,17 +680,20 @@ export function Overview() {
                           onMenuSelect={item => {
                             switch (item) {
                               case 'reset':
-                                onResetDashboard();
+                                void onResetDashboard();
                                 break;
                               case 'export':
                                 onExport();
                                 break;
                               case 'import':
-                                onImport();
+                                void onImport();
+                                break;
+                              case 'delete':
+                                void onDeleteDashboard(dashboard.id);
                                 break;
                               default:
                                 throw new Error(
-                                  `Unrecognized menu option: ${item}`,
+                                  `Unrecognized menu option: ${String(item)}`,
                                 );
                             }
                           }}
@@ -533,6 +714,13 @@ export function Overview() {
                               text: t('Export'),
                               disabled: isImporting,
                             },
+                            Menu.line,
+                            {
+                              name: 'delete',
+                              text: t('Delete dashboard'),
+                              disabled:
+                                isImporting || dashboardPages.length <= 1,
+                            },
                           ]}
                         />
                       </Dialog>
@@ -552,100 +740,212 @@ export function Overview() {
         <div>
           <View
             data-testid="reports-overview"
+            innerRef={containerRef}
             style={{ userSelect: 'none', paddingBottom: MOBILE_NAV_HEIGHT }}
           >
-            <ResponsiveGridLayout
-              breakpoints={{ desktop: breakpoints.medium, mobile: 1 }}
-              layouts={{ desktop: desktopLayout, mobile: mobileLayout }}
-              onLayoutChange={
-                currentBreakpoint === 'desktop' ? onLayoutChange : undefined
-              }
-              onBreakpointChange={onBreakpointChange}
-              cols={{ desktop: 12, mobile: 1 }}
-              rowHeight={100}
-              draggableCancel={`.${NON_DRAGGABLE_AREA_CLASS_NAME}`}
-              isDraggable={currentBreakpoint === 'desktop' && isEditing}
-              isResizable={currentBreakpoint === 'desktop' && isEditing}
-            >
-              {desktopLayout.map(item => (
-                <div key={item.i}>
-                  {item.type === 'net-worth-card' ? (
-                    <NetWorthCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      accounts={accounts}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'crossover-card' &&
-                    crossoverReportEnabled ? (
-                    <CrossoverCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      accounts={accounts}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'cash-flow-card' ? (
-                    <CashFlowCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'spending-card' ? (
-                    <SpendingCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'markdown-card' ? (
-                    <MarkdownCard
-                      isEditing={isEditing}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'custom-report' ? (
-                    <CustomReportListCards
-                      isEditing={isEditing}
-                      report={customReportMap.get(item.meta.id)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'summary-card' ? (
-                    <SummaryCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'calendar-card' ? (
-                    <CalendarCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      meta={item.meta}
-                      firstDayOfWeekIdx={firstDayOfWeekIdx}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : item.type === 'formula-card' && formulaMode ? (
-                    <FormulaCard
-                      widgetId={item.i}
-                      isEditing={isEditing}
-                      meta={item.meta}
-                      onMetaChange={newMeta => onMetaChange(item, newMeta)}
-                      onRemove={() => onRemoveWidget(item.i)}
-                    />
-                  ) : null}
-                </div>
-              ))}
-            </ResponsiveGridLayout>
+            {isMounted && (
+              <ReactGridLayout
+                width={containerWidth}
+                layout={currentLayout}
+                gridConfig={{
+                  cols: currentBreakpoint === 'desktop' ? 12 : 1,
+                  rowHeight: 100,
+                }}
+                dragConfig={{
+                  enabled: currentBreakpoint === 'desktop' && isEditing,
+                  cancel: `.${NON_DRAGGABLE_AREA_CLASS_NAME}`,
+                }}
+                resizeConfig={{
+                  enabled: currentBreakpoint === 'desktop' && isEditing,
+                }}
+                onLayoutChange={
+                  currentBreakpoint === 'desktop' ? onLayoutChange : undefined
+                }
+              >
+                {currentLayout.map(item => {
+                  const widget = widgetMap.get(item.i);
+
+                  if (!widget) {
+                    return null;
+                  }
+
+                  return (
+                    <div key={item.i}>
+                      <ErrorBoundary
+                        fallbackRender={() => (
+                          <MissingReportCard
+                            isEditing={isEditing}
+                            onRemove={() => onRemoveWidget(item.i)}
+                          >
+                            <Trans>This widget has failed to load.</Trans>
+                          </MissingReportCard>
+                        )}
+                      >
+                        {widget.type === 'net-worth-card' ? (
+                          <NetWorthCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            accounts={accounts}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'crossover-card' &&
+                          crossoverReportEnabled ? (
+                          <CrossoverCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            accounts={accounts}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'age-of-money-card' &&
+                          ageOfMoneyReportEnabled ? (
+                          <AgeOfMoneyCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'cash-flow-card' ? (
+                          <CashFlowCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'spending-card' ? (
+                          <SpendingCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'budget-analysis-card' &&
+                          budgetAnalysisReportEnabled ? (
+                          <BudgetAnalysisCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'markdown-card' ? (
+                          <MarkdownCard
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'custom-report' ? (
+                          <CustomReportListCards
+                            isEditing={isEditing}
+                            report={customReportMap.get(widget.meta.id)}
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'summary-card' ? (
+                          <SummaryCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'calendar-card' ? (
+                          <CalendarCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            firstDayOfWeekIdx={firstDayOfWeekIdx}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'formula-card' && formulaMode ? (
+                          <FormulaCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : widget.type === 'sankey-card' &&
+                          sankeyFeatureFlag ? (
+                          <SankeyCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                            onRemove={() => onRemoveWidget(item.i)}
+                            onCopy={targetDashboardId =>
+                              onCopyWidget(item.i, targetDashboardId)
+                            }
+                          />
+                        ) : null}
+                      </ErrorBoundary>
+                    </div>
+                  );
+                })}
+              </ReactGridLayout>
+            )}
           </View>
         </div>
       )}

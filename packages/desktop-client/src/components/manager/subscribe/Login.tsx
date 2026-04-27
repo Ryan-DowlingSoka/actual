@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
@@ -14,23 +14,21 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import { isElectron } from '@actual-app/core/shared/environment';
+import type { OpenIdConfig } from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { isElectron } from 'loot-core/shared/environment';
-import { type OpenIdConfig } from 'loot-core/types/models';
-
-import { useBootstrapped, Title } from './common';
-import { OpenIdForm } from './OpenIdForm';
-
-import { Link } from '@desktop-client/components/common/Link';
+import { Link } from '#components/common/Link';
 import {
   useAvailableLoginMethods,
   useLoginMethod,
-} from '@desktop-client/components/ServerContext';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useDispatch } from '@desktop-client/redux';
-import { warningBackground } from '@desktop-client/style/themes/dark';
-import { loggedIn } from '@desktop-client/users/usersSlice';
+} from '#components/ServerContext';
+import { useNavigate } from '#hooks/useNavigate';
+import { useDispatch } from '#redux';
+import { loggedIn } from '#users/usersSlice';
+
+import { Title, useBootstrapped } from './common';
+import { OpenIdForm } from './OpenIdForm';
 
 function PasswordLogin({ setError, dispatch }) {
   const [password, setPassword] = useState('');
@@ -109,12 +107,12 @@ function OpenIdLogin({ setError }) {
     if (error) {
       setError(error);
     } else {
-      navigate('/');
+      void navigate('/');
     }
   }
 
   useEffect(() => {
-    send('owner-created').then(created => setWarnMasterCreation(!created));
+    void send('owner-created').then(created => setWarnMasterCreation(!created));
   }, []);
 
   useEffect(() => {
@@ -171,13 +169,11 @@ function OpenIdLogin({ setError }) {
             <Button
               variant="primary"
               onPress={onSubmitOpenId}
-              style={
-                warningBackground && {
-                  padding: 6,
-                  fontSize: 14,
-                  width: 170,
-                }
-              }
+              style={{
+                padding: 6,
+                fontSize: 14,
+                width: 170,
+              }}
               isDisabled={
                 firstLoginPassword === '' &&
                 askForPassword &&
@@ -205,7 +201,7 @@ function OpenIdLogin({ setError }) {
                   variant="bare"
                   isDisabled={firstLoginPassword === '' && warnMasterCreation}
                   onPress={() => {
-                    send('get-openid-config', {
+                    void send('get-openid-config', {
                       password: firstLoginPassword,
                     }).then(config => {
                       if ('error' in config) {
@@ -262,7 +258,7 @@ function OpenIdLogin({ setError }) {
               </Button>,
             ]}
             onSetOpenId={async config => {
-              onSetOpenId(config);
+              void onSetOpenId(config);
             }}
           />
         </View>
@@ -319,7 +315,7 @@ export function Login() {
 
   useEffect(() => {
     if (checked && !searchParams.has('error')) {
-      (async () => {
+      void (async () => {
         if (method === 'header') {
           setError(null);
           const { error } = await send('subscribe-sign-in', {
@@ -330,7 +326,7 @@ export function Login() {
           if (error) {
             setError(error);
           } else {
-            dispatch(loggedIn());
+            void dispatch(loggedIn());
           }
         }
       })();

@@ -1,43 +1,32 @@
 // @ts-strict-ignore
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  type SetStateAction,
-  type Dispatch,
-  type CSSProperties,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SpaceBetween } from '@actual-app/components/space-between';
+import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as undo from '@actual-app/core/platform/client/undo';
+import type { NewUserEntity, UserEntity } from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
-import * as undo from 'loot-core/platform/client/undo';
-import { type NewUserEntity, type UserEntity } from 'loot-core/types/models';
+import { InfiniteScrollWrapper } from '#components/common/InfiniteScrollWrapper';
+import { Link } from '#components/common/Link';
+import { Search } from '#components/common/Search';
+import { SelectedProvider, useSelected } from '#hooks/useSelected';
+import { pushModal } from '#modals/modalsSlice';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { signOut } from '#users/usersSlice';
 
 import { UserDirectoryHeader } from './UserDirectoryHeader';
 import { UserDirectoryRow } from './UserDirectoryRow';
 
-import { InfiniteScrollWrapper } from '@desktop-client/components/common/InfiniteScrollWrapper';
-import { Link } from '@desktop-client/components/common/Link';
-import { Search } from '@desktop-client/components/common/Search';
-import {
-  SelectedProvider,
-  useSelected,
-} from '@desktop-client/hooks/useSelected';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { signOut } from '@desktop-client/users/usersSlice';
-
 type ManageUserDirectoryContentProps = {
   isModal: boolean;
-  setLoading?: Dispatch<SetStateAction<boolean>>;
 };
 
 function useGetUserDirectoryErrors() {
@@ -81,10 +70,7 @@ function useGetUserDirectoryErrors() {
   return { getUserDirectoryErrors };
 }
 
-function UserDirectoryContent({
-  isModal,
-  setLoading,
-}: ManageUserDirectoryContentProps) {
+function UserDirectoryContent({ isModal }: ManageUserDirectoryContentProps) {
   const { t } = useTranslation();
 
   const [allUsers, setAllUsers] = useState([]);
@@ -120,8 +106,6 @@ function UserDirectoryContent({
   );
 
   const loadUsers = useCallback(async () => {
-    setLoading(true);
-
     const loadedUsers = (await send('users-get')) ?? [];
     if ('error' in loadedUsers) {
       dispatch(
@@ -135,34 +119,30 @@ function UserDirectoryContent({
           },
         }),
       );
-      setLoading(false);
       return;
     }
 
     setAllUsers(loadedUsers);
-    setLoading(false);
     return loadedUsers;
-  }, [dispatch, getUserDirectoryErrors, setLoading, t]);
+  }, [dispatch, getUserDirectoryErrors, t]);
 
   useEffect(() => {
     async function loadData() {
       await loadUsers();
-      setLoading(false);
     }
 
-    loadData();
+    void loadData();
 
     return () => {
       undo.setUndoState('openModal', null);
     };
-  }, [setLoading, loadUsers]);
+  }, [loadUsers]);
 
   function loadMore() {
     setPage(page => page + 1);
   }
 
   const onDeleteSelected = useCallback(async () => {
-    setLoading(true);
     const res = await send('user-delete-all', [...selectedInst.items]);
 
     const error = res['error'];
@@ -180,7 +160,7 @@ function UserDirectoryContent({
               button: {
                 title: t('Go to login'),
                 action: () => {
-                  dispatch(signOut());
+                  void dispatch(signOut());
                 },
               },
             },
@@ -202,15 +182,7 @@ function UserDirectoryContent({
 
     await loadUsers();
     selectedInst.dispatch({ type: 'select-none' });
-    setLoading(false);
-  }, [
-    setLoading,
-    selectedInst,
-    loadUsers,
-    dispatch,
-    t,
-    getUserDirectoryErrors,
-  ]);
+  }, [selectedInst, loadUsers, dispatch, t, getUserDirectoryErrors]);
 
   const onEditUser = useCallback(
     user => {
@@ -222,14 +194,13 @@ function UserDirectoryContent({
               user,
               onSave: async () => {
                 await loadUsers();
-                setLoading(false);
               },
             },
           },
         }),
       );
     },
-    [dispatch, loadUsers, setLoading],
+    [dispatch, loadUsers],
   );
 
   function onAddUser() {
@@ -248,7 +219,6 @@ function UserDirectoryContent({
             user,
             onSave: async () => {
               await loadUsers();
-              setLoading(false);
             },
           },
         },
@@ -301,7 +271,7 @@ function UserDirectoryContent({
           />
         </View>
 
-        <View style={{ flex: 1 }}>
+        <View style={styles.tableContainer}>
           <UserDirectoryHeader />
           <InfiniteScrollWrapper loadMore={loadMore}>
             {filteredUsers.length === 0 ? (
@@ -370,14 +340,10 @@ function EmptyMessage({ text, style }: EmptyMessageProps) {
 
 type ManageUsersProps = {
   isModal: boolean;
-  setLoading?: Dispatch<SetStateAction<boolean>>;
 };
 
-export function UserDirectory({
-  isModal,
-  setLoading = () => {},
-}: ManageUsersProps) {
-  return <UserDirectoryContent isModal={isModal} setLoading={setLoading} />;
+export function UserDirectory({ isModal }: ManageUsersProps) {
+  return <UserDirectoryContent isModal={isModal} />;
 }
 
 type UsersListProps = {

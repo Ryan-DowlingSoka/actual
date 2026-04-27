@@ -1,5 +1,6 @@
 // @ts-strict-ignore
-import React, { type CSSProperties, type RefCallback, useRef } from 'react';
+import React, { useRef } from 'react';
+import type { CSSProperties, RefCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -11,18 +12,17 @@ import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import { View } from '@actual-app/components/view';
+import type {
+  CategoryEntity,
+  CategoryGroupEntity,
+} from '@actual-app/core/types/models';
 import { css, cx } from '@emotion/css';
 
-import {
-  type CategoryEntity,
-  type CategoryGroupEntity,
-} from 'loot-core/types/models';
-
-import { NotesButton } from '@desktop-client/components/NotesButton';
-import { InputCell } from '@desktop-client/components/table';
-import { useContextMenu } from '@desktop-client/hooks/useContextMenu';
-import { useFeatureFlag } from '@desktop-client/hooks/useFeatureFlag';
-import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
+import { NotesButton } from '#components/NotesButton';
+import { InputCell } from '#components/table';
+import { useContextMenu } from '#hooks/useContextMenu';
+import { useFeatureFlag } from '#hooks/useFeatureFlag';
+import { useGlobalPref } from '#hooks/useGlobalPref';
 
 type SidebarGroupProps = {
   group: CategoryGroupEntity;
@@ -190,11 +190,7 @@ export function SidebarGroup({
               </Button>
             </Tooltip>
 
-            <NotesButton
-              id={group.id}
-              style={dragPreview && { color: 'currentColor' }}
-              defaultColor={theme.pageTextLight}
-            />
+            <NotesButton id={group.id} defaultColor={theme.pageTextLight} />
           </View>
         </>
       )}
@@ -207,7 +203,7 @@ export function SidebarGroup({
       style={{
         ...style,
         width: 200 + 100 * categoryExpandedState,
-        backgroundColor: theme.tableRowHeaderBackground,
+        backgroundColor: theme.budgetHeaderCurrentMonth,
         overflow: 'hidden',
         '& .hover-visible': {
           display: 'none',

@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-import * as db from '../../db';
+import * as db from '#server/db';
 
 // This file doesn't test the schema code directly, it tests that
 // views return data as expected and various constraints on the
@@ -16,7 +16,7 @@ describe('schema', () => {
       (await db.all<db.DbViewTransaction>('SELECT * FROM v_transactions'))
         .length,
     ).toBe(0);
-    await db.runQuery('INSERT INTO transactions (acct) VALUES (?)', ['foo']);
+    db.runQuery('INSERT INTO transactions (acct) VALUES (?)', ['foo']);
     expect(
       (await db.all<db.DbTransaction>('SELECT * FROM transactions')).length,
     ).toBe(1);
@@ -34,7 +34,7 @@ describe('schema', () => {
       (await db.all<db.DbViewTransaction>('SELECT * FROM v_transactions'))
         .length,
     ).toBe(0);
-    await db.runQuery('INSERT INTO transactions (date) VALUES (?)', [20200101]);
+    db.runQuery('INSERT INTO transactions (date) VALUES (?)', [20200101]);
     expect(
       (await db.all<db.DbTransaction>('SELECT * FROM transactions')).length,
     ).toBe(1);
@@ -52,7 +52,7 @@ describe('schema', () => {
       (await db.all<db.DbViewTransaction>('SELECT * FROM v_transactions'))
         .length,
     ).toBe(0);
-    await db.runQuery(
+    db.runQuery(
       'INSERT INTO transactions (date, acct, isChild) VALUES (?, ?, ?)',
       [20200101, 'foo', 1],
     );

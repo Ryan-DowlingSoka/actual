@@ -1,8 +1,8 @@
 // @ts-strict-ignore
 import { stringify as csvStringify } from 'csv-stringify/sync';
 
-import { integerToAmount } from '../../../shared/util';
-import { aqlQuery } from '../../aql';
+import { aqlQuery } from '#server/aql';
+import { integerToAmount } from '#shared/util';
 
 export async function exportToCSV(
   transactions,
@@ -69,6 +69,7 @@ export async function exportQueryToCSV(query) {
         { IsChild: 'is_child' },
         { SortOrder: 'sort_order' },
         { Notes: 'notes' },
+        { CategoryGroup: 'category.group.name' },
         { Category: 'category.name' },
         { Amount: 'amount' },
         { Cleared: 'cleared' },
@@ -110,6 +111,7 @@ export async function exportQueryToCSV(query) {
             ') ' +
             (trans.Notes || '')
           : trans.Notes,
+      Category_Group: trans.CategoryGroup,
       Category: trans.Category,
       Amount: trans.IsParent
         ? 0

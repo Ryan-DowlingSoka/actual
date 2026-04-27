@@ -1,25 +1,25 @@
 import React, { useCallback, useRef, useState } from 'react';
 
+import { useFormat } from '#hooks/useFormat';
+import { envelopeBudget } from '#spreadsheet/bindings';
+
 import { BalanceMenu } from './BalanceMenu';
 import { CoverMenu } from './CoverMenu';
 import { useEnvelopeSheetValue } from './EnvelopeBudgetComponents';
 import { TransferMenu } from './TransferMenu';
 
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { envelopeBudget } from '@desktop-client/spreadsheet/bindings';
-
 type BalanceMovementMenuProps = {
   categoryId: string;
   month: string;
   onBudgetAction: (month: string, action: string, arg?: unknown) => void;
-  onClose?: () => void;
+  onClose: () => void;
 };
 
 export function BalanceMovementMenu({
   categoryId,
   month,
   onBudgetAction,
-  onClose = () => {},
+  onClose,
 }: BalanceMovementMenuProps) {
   const format = useFormat();
 

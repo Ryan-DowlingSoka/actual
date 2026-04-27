@@ -1,7 +1,6 @@
 // @ts-strict-ignore
-import { v4 as uuidv4 } from 'uuid';
 
-import * as internals from './encryption-internals';
+import * as internals from '#server/encryption/encryption-internals';
 
 // A map of all possible master encryption keys to use, keyed by
 // unique id
@@ -12,7 +11,7 @@ class Key {
   value;
 
   constructor({ id }) {
-    this.id = id || uuidv4();
+    this.id = id || crypto.randomUUID();
   }
 
   async createFromPassword({ password, salt }) {
@@ -50,11 +49,11 @@ export function hasKey(keyId) {
   return keyId in keys;
 }
 
-export function encrypt(value, keyId) {
+export async function encrypt(value, keyId) {
   return internals.encrypt(getKey(keyId), value);
 }
 
-export function decrypt(encrypted, meta) {
+export async function decrypt(encrypted, meta) {
   return internals.decrypt(getKey(meta.keyId), encrypted, meta);
 }
 

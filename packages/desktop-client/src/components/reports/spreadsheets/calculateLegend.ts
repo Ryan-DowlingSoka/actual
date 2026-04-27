@@ -1,13 +1,12 @@
 import { theme } from '@actual-app/components/theme';
+import type {
+  balanceTypeOpType,
+  GroupedEntity,
+  IntervalEntity,
+  LegendEntity,
+} from '@actual-app/core/types/models';
 
-import {
-  type LegendEntity,
-  type IntervalEntity,
-  type GroupedEntity,
-  type balanceTypeOpType,
-} from 'loot-core/types/models';
-
-import { getColorScale } from '@desktop-client/components/reports/chart-theme';
+import { getColorScale } from '#components/reports/chart-theme';
 
 export function calculateLegend(
   intervalData: IntervalEntity[],
@@ -33,18 +32,34 @@ export function calculateLegend(
 
     if (groupBy === 'Interval') {
       if (balanceTypeOp === 'totalDebts') {
-        return theme.reportsRed;
+        return theme.reportsNumberNegative;
       }
 
-      if (balanceTypeOp === 'totalTotals') {
-        if (data.totalTotals < 0) {
-          return theme.reportsRed;
+      if (balanceTypeOp === 'netDebts') {
+        return theme.reportsNumberNegative;
+      }
+
+      if (
+        balanceTypeOp === 'totalTotals' ||
+        balanceTypeOp === 'totalBudgeted'
+      ) {
+        const total =
+          balanceTypeOp === 'totalBudgeted'
+            ? data.totalBudgeted
+            : data.totalTotals;
+
+        if (total < 0) {
+          return theme.reportsNumberNegative;
         }
 
-        return theme.reportsBlue;
+        return theme.reportsNumberPositive;
       }
 
-      return theme.reportsBlue;
+      if (balanceTypeOp === 'totalAssets' || balanceTypeOp === 'netAssets') {
+        return theme.reportsNumberPositive;
+      }
+
+      return theme.reportsChartFill;
     }
 
     return colorScale[index % colorScale.length];
@@ -55,6 +70,7 @@ export function calculateLegend(
       id: item.id || '',
       name: item.name || '',
       color: getColor(item.data, index),
+      dataKey: item.id || item.name || '', // Use id for unique data lookup
     };
   });
   return legend;

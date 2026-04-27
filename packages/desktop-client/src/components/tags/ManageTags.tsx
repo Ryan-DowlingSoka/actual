@@ -5,32 +5,27 @@ import { Button } from '@actual-app/components/button';
 import { SvgAdd } from '@actual-app/components/icons/v1';
 import { SvgSearchAlternate } from '@actual-app/components/icons/v2';
 import { SpaceBetween } from '@actual-app/components/space-between';
+import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { getNormalisedString } from '@actual-app/core/shared/normalisation';
 
-import { getNormalisedString } from 'loot-core/shared/normalisation';
+import { Search } from '#components/common/Search';
+import { SelectedProvider, useSelected } from '#hooks/useSelected';
+import { useTags } from '#hooks/useTags';
+import { useDeleteTagsMutation, useDiscoverTagsMutation } from '#tags';
 
 import { TagCreationRow } from './TagCreationRow';
 import { TagsHeader } from './TagsHeader';
 import { TagsList } from './TagsList';
 
-import { Search } from '@desktop-client/components/common/Search';
-import {
-  SelectedProvider,
-  useSelected,
-} from '@desktop-client/hooks/useSelected';
-import { useTags } from '@desktop-client/hooks/useTags';
-import { useDispatch } from '@desktop-client/redux';
-import { deleteAllTags, findTags } from '@desktop-client/tags/tagsSlice';
-
 export function ManageTags() {
   const { t } = useTranslation();
-  const dispatch = useDispatch();
   const [filter, setFilter] = useState('');
   const [hoveredTag, setHoveredTag] = useState<string>();
   const [create, setCreate] = useState(false);
-  const tags = useTags();
+  const { data: tags = [] } = useTags();
 
   const filteredTags = useMemo(() => {
     return filter === ''
@@ -42,10 +37,19 @@ export function ManageTags() {
 
   const selectedInst = useSelected('manage-tags', filteredTags, []);
 
+  const { mutate: discoverTags } = useDiscoverTagsMutation();
+  const { mutate: deleteTags } = useDeleteTagsMutation();
+
   const onDeleteSelected = useCallback(async () => {
-    dispatch(deleteAllTags([...selectedInst.items]));
-    selectedInst.dispatch({ type: 'select-none' });
-  }, [dispatch, selectedInst]);
+    deleteTags(
+      { ids: [...selectedInst.items] },
+      {
+        onSuccess: () => {
+          selectedInst.dispatch({ type: 'select-none' });
+        },
+      },
+    );
+  }, [deleteTags, selectedInst]);
 
   return (
     <SelectedProvider instance={selectedInst}>
@@ -74,7 +78,7 @@ export function ManageTags() {
             <SvgAdd width={10} height={10} style={{ marginRight: 3 }} />
             <Trans>Add New</Trans>
           </Button>
-          <Button variant="bare" onPress={() => dispatch(findTags())}>
+          <Button variant="bare" onPress={() => discoverTags()}>
             <SvgSearchAlternate
               width={10}
               height={10}
@@ -89,7 +93,7 @@ export function ManageTags() {
             onChange={setFilter}
           />
         </SpaceBetween>
-        <View style={{ flex: 1, marginTop: 12 }}>
+        <View style={{ marginTop: 12, ...styles.tableContainer }}>
           <TagsHeader />
           {create && (
             <TagCreationRow onClose={() => setCreate(false)} tags={tags} />

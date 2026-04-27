@@ -1,27 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { listen, send } from 'loot-core/platform/client/fetch';
-import { type Query } from 'loot-core/shared/query';
-import { isPreviewId } from 'loot-core/shared/transactions';
-import {
-  type ScheduleEntity,
-  type TransactionEntity,
-} from 'loot-core/types/models';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { Query } from '@actual-app/core/shared/query';
+import { isPreviewId } from '@actual-app/core/shared/transactions';
+import type {
+  ScheduleEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
 
-import { TransactionListWithBalances } from '@desktop-client/components/mobile/transactions/TransactionListWithBalances';
-import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
-import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useOffBudgetAccounts } from '@desktop-client/hooks/useOffBudgetAccounts';
-import { usePreviewTransactions } from '@desktop-client/hooks/usePreviewTransactions';
-import { getSchedulesQuery } from '@desktop-client/hooks/useSchedules';
-import { useTransactions } from '@desktop-client/hooks/useTransactions';
-import { useTransactionsSearch } from '@desktop-client/hooks/useTransactionsSearch';
-import { collapseModals, pushModal } from '@desktop-client/modals/modalsSlice';
-import * as queries from '@desktop-client/queries';
-import { useDispatch } from '@desktop-client/redux';
-import * as bindings from '@desktop-client/spreadsheet/bindings';
+import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
+import { SchedulesProvider } from '#hooks/useCachedSchedules';
+import { useDateFormat } from '#hooks/useDateFormat';
+import { useNavigate } from '#hooks/useNavigate';
+import { useOffBudgetAccounts } from '#hooks/useOffBudgetAccounts';
+import { usePreviewTransactions } from '#hooks/usePreviewTransactions';
+import { getSchedulesQuery } from '#hooks/useSchedules';
+import { useTransactions } from '#hooks/useTransactions';
+import { useTransactionsSearch } from '#hooks/useTransactionsSearch';
+import { collapseModals, pushModal } from '#modals/modalsSlice';
+import * as queries from '#queries';
+import { useDispatch } from '#redux';
+import * as bindings from '#spreadsheet/bindings';
 
 export function OffBudgetAccountTransactions() {
   const schedulesQuery = useMemo(() => getSchedulesQuery('offbudget'), []);
@@ -46,14 +46,13 @@ function TransactionListWithPreviews() {
   );
   const {
     transactions,
-    isLoading: isTransactionsLoading,
-    reload: reloadTransactions,
-    isLoadingMore,
-    loadMore: loadMoreTransactions,
+    isPending: isTransactionsLoading,
+    isFetchingNextPage: isLoadingMoreTransactions,
+    fetchNextPage: fetchMoreTransactions,
   } = useTransactions({
     query: transactionsQuery,
   });
-  const offBudgetAccounts = useOffBudgetAccounts();
+  const { data: offBudgetAccounts = [] } = useOffBudgetAccounts();
   const offBudgetAccountsFilter = useCallback(
     (schedule: ScheduleEntity) =>
       offBudgetAccounts.some(a => a.id === schedule._account),
@@ -69,21 +68,6 @@ function TransactionListWithPreviews() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    return listen('sync-event', event => {
-      if (event.type === 'applied') {
-        const tables = event.tables;
-        if (
-          tables.includes('transactions') ||
-          tables.includes('category_mapping') ||
-          tables.includes('payee_mapping')
-        ) {
-          reloadTransactions();
-        }
-      }
-    });
-  }, [reloadTransactions]);
-
   const { isSearching, search: onSearch } = useTransactionsSearch({
     updateQuery: setTransactionsQuery,
     resetQuery: () => setTransactionsQuery(baseTransactionsQuery()),
@@ -93,7 +77,7 @@ function TransactionListWithPreviews() {
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
       if (!isPreviewId(transaction.id)) {
-        navigate(`/transactions/${transaction.id}`);
+        void navigate(`/transactions/${transaction.id}`);
       } else {
         dispatch(
           pushModal({
@@ -101,9 +85,12 @@ function TransactionListWithPreviews() {
               name: 'scheduled-transaction-menu',
               options: {
                 transactionId: transaction.id,
-                onPost: async transactionId => {
+                onPost: async (transactionId, today = false) => {
                   const parts = transactionId.split('/');
-                  await send('schedule/post-transaction', { id: parts[1] });
+                  await send('schedule/post-transaction', {
+                    id: parts[1],
+                    today,
+                  });
                   dispatch(
                     collapseModals({
                       rootModalName: 'scheduled-transaction-menu',
@@ -158,8 +145,8 @@ function TransactionListWithPreviews() {
       }
       transactions={transactionsToDisplay}
       balance={balanceBindings.balance}
-      isLoadingMore={isLoadingMore}
-      onLoadMore={loadMoreTransactions}
+      isLoadingMore={isLoadingMoreTransactions}
+      onLoadMore={fetchMoreTransactions}
       searchPlaceholder={t('Search Off Budget Accounts')}
       onSearch={onSearch}
       onOpenTransaction={onOpenTransaction}

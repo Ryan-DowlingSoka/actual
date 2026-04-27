@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 
@@ -10,39 +10,36 @@ import { Paragraph } from '@actual-app/components/paragraph';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  CashFlowWidget,
+  RuleConditionEntity,
+  TimeFrame,
+} from '@actual-app/core/types/models';
 import * as d from 'date-fns';
 
-import { send } from 'loot-core/platform/client/fetch';
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type CashFlowWidget,
-  type RuleConditionEntity,
-  type TimeFrame,
-} from 'loot-core/types/models';
-
-import { EditablePageHeaderTitle } from '@desktop-client/components/EditablePageHeaderTitle';
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import {
-  MobilePageHeader,
-  Page,
-  PageHeader,
-} from '@desktop-client/components/Page';
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { Change } from '@desktop-client/components/reports/Change';
-import { CashFlowGraph } from '@desktop-client/components/reports/graphs/CashFlowGraph';
-import { Header } from '@desktop-client/components/reports/Header';
-import { LoadingIndicator } from '@desktop-client/components/reports/LoadingIndicator';
-import { calculateTimeRange } from '@desktop-client/components/reports/reportRanges';
-import { cashFlowByDate } from '@desktop-client/components/reports/spreadsheets/cash-flow-spreadsheet';
-import { useReport } from '@desktop-client/components/reports/useReport';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useRuleConditionFilters } from '@desktop-client/hooks/useRuleConditionFilters';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
-import { useWidget } from '@desktop-client/hooks/useWidget';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { EditablePageHeaderTitle } from '#components/EditablePageHeaderTitle';
+import { FinancialText } from '#components/FinancialText';
+import { MobileBackButton } from '#components/mobile/MobileBackButton';
+import { MobilePageHeader, Page, PageHeader } from '#components/Page';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { Change } from '#components/reports/Change';
+import { CashFlowGraph } from '#components/reports/graphs/CashFlowGraph';
+import { Header } from '#components/reports/Header';
+import { LoadingIndicator } from '#components/reports/LoadingIndicator';
+import { calculateTimeRange } from '#components/reports/reportRanges';
+import { cashFlowByDate } from '#components/reports/spreadsheets/cash-flow-spreadsheet';
+import { useReport } from '#components/reports/useReport';
+import { useDashboardWidget } from '#hooks/useDashboardWidget';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
+import { useNavigate } from '#hooks/useNavigate';
+import { useRuleConditionFilters } from '#hooks/useRuleConditionFilters';
+import { useSyncedPref } from '#hooks/useSyncedPref';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
+import { useUpdateDashboardWidgetMutation } from '#reports/mutations';
 
 export const defaultTimeFrame = {
   start: monthUtils.dayFromDate(monthUtils.currentMonth()),
@@ -52,12 +49,12 @@ export const defaultTimeFrame = {
 
 export function CashFlow() {
   const params = useParams();
-  const { data: widget, isLoading } = useWidget<CashFlowWidget>(
-    params.id ?? '',
-    'cash-flow-card',
-  );
+  const { data: widget, isPending } = useDashboardWidget<CashFlowWidget>({
+    id: params.id,
+    type: 'cash-flow-card',
+  });
 
-  if (isLoading) {
+  if (isPending) {
     return <LoadingIndicator />;
   }
 
@@ -99,13 +96,15 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
   );
   const [latestTransaction, setLatestTransaction] = useState('');
 
-  const [isConcise, setIsConcise] = useState(() => {
+  const [isConcise, setIsConcise] = useState(false);
+
+  useEffect(() => {
     const numDays = d.differenceInCalendarDays(
       d.parseISO(end),
       d.parseISO(start),
     );
-    return numDays > 31 * 3;
-  });
+    setIsConcise(numDays > 31 * 3);
+  }, [start, end]);
 
   const params = useMemo(
     () =>
@@ -153,13 +152,13 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
         .rangeInclusive(earliestMonth, latestMonth)
         .map(month => ({
           name: month,
-          pretty: monthUtils.format(month, 'MMMM, yyyy', locale),
+          pretty: monthUtils.format(month, 'MMMM yyyy', locale),
         }))
         .reverse();
 
       setAllMonths(allMonths);
     }
-    run();
+    void run();
   }, [locale]);
 
   useEffect(() => {
@@ -176,47 +175,49 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
   }, [latestTransaction, widget?.meta?.timeFrame]);
 
   function onChangeDates(start: string, end: string, mode: TimeFrame['mode']) {
-    const numDays = d.differenceInCalendarDays(
-      d.parseISO(end),
-      d.parseISO(start),
-    );
-    const isConcise = numDays > 31 * 3;
-
     setStart(start);
     setEnd(end);
     setMode(mode);
-    setIsConcise(isConcise);
   }
 
   const navigate = useNavigate();
   const { isNarrowWidth } = useResponsive();
+  const updateDashboardWidgetMutation = useUpdateDashboardWidgetMutation();
 
   async function onSaveWidget() {
     if (!widget) {
       throw new Error('No widget that could be saved.');
     }
 
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        conditions,
-        conditionsOp,
-        timeFrame: {
-          start,
-          end,
-          mode,
+    updateDashboardWidgetMutation.mutate(
+      {
+        widget: {
+          id: widget.id,
+          meta: {
+            ...(widget.meta ?? {}),
+            conditions,
+            conditionsOp,
+            timeFrame: {
+              start,
+              end,
+              mode,
+            },
+            showBalance,
+          },
         },
-        showBalance,
       },
-    });
-    dispatch(
-      addNotification({
-        notification: {
-          type: 'message',
-          message: t('Dashboard widget successfully saved.'),
+      {
+        onSuccess: () => {
+          dispatch(
+            addNotification({
+              notification: {
+                type: 'message',
+                message: t('Dashboard widget successfully saved.'),
+              },
+            }),
+          );
         },
-      }),
+      },
     );
   }
 
@@ -227,11 +228,13 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
     }
 
     const name = newName || t('Cash Flow');
-    await send('dashboard-update-widget', {
-      id: widget.id,
-      meta: {
-        ...(widget.meta ?? {}),
-        name,
+    updateDashboardWidgetMutation.mutate({
+      widget: {
+        id: widget.id,
+        meta: {
+          ...(widget.meta ?? {}),
+          name,
+        },
       },
     });
   };
@@ -326,11 +329,11 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
               </Block>
             }
             right={
-              <Text style={{ fontWeight: 600 }}>
+              <FinancialText style={{ fontWeight: 600 }}>
                 <PrivacyFilter>
                   {format(totalIncome, 'financial')}
                 </PrivacyFilter>
-              </Text>
+              </FinancialText>
             }
           />
 
@@ -342,11 +345,11 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
               </Block>
             }
             right={
-              <Text style={{ fontWeight: 600 }}>
+              <FinancialText style={{ fontWeight: 600 }}>
                 <PrivacyFilter>
                   {format(totalExpenses, 'financial')}
                 </PrivacyFilter>
-              </Text>
+              </FinancialText>
             }
           />
 
@@ -358,11 +361,11 @@ function CashFlowInner({ widget }: CashFlowInnerProps) {
               </Block>
             }
             right={
-              <Text style={{ fontWeight: 600 }}>
+              <FinancialText style={{ fontWeight: 600 }}>
                 <PrivacyFilter>
                   {format(totalTransfers, 'financial')}
                 </PrivacyFilter>
-              </Text>
+              </FinancialText>
             }
           />
           <Text style={{ fontWeight: 600 }}>

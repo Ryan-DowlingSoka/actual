@@ -1,23 +1,21 @@
 // @ts-strict-ignore
-import React, {
-  type ComponentPropsWithoutRef,
-  type ReactNode,
-  type CSSProperties,
-} from 'react';
+import React from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from 'react';
 
-import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 
-import { PrivacyFilter } from '@desktop-client/components/PrivacyFilter';
-import { type FormatType, useFormat } from '@desktop-client/hooks/useFormat';
-import { useSheetName } from '@desktop-client/hooks/useSheetName';
-import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
-import {
-  type Binding,
-  type SheetNames,
-  type SheetFields,
-  type Spreadsheets,
-} from '@desktop-client/spreadsheet';
+import { FinancialText } from '#components/FinancialText';
+import { PrivacyFilter } from '#components/PrivacyFilter';
+import { useFormat } from '#hooks/useFormat';
+import type { FormatType } from '#hooks/useFormat';
+import { useSheetName } from '#hooks/useSheetName';
+import { useSheetValue } from '#hooks/useSheetValue';
+import type {
+  Binding,
+  SheetFields,
+  SheetNames,
+  Spreadsheets,
+} from '#spreadsheet';
 
 type CellValueProps<
   SheetName extends SheetNames,
@@ -60,7 +58,7 @@ const PRIVACY_FILTER_TYPES = ['financial', 'financial-with-sign'];
 type CellValueTextProps<
   SheetName extends SheetNames,
   FieldName extends SheetFields<SheetName>,
-> = Omit<ComponentPropsWithoutRef<typeof Text>, 'value'> & {
+> = Omit<ComponentPropsWithoutRef<typeof Text>, 'value' | 'as'> & {
   type?: FormatType;
   name: string;
   value: Spreadsheets[SheetName][FieldName];
@@ -87,17 +85,33 @@ export function CellValueText<
     type === 'financial' ||
     type === 'financial-with-sign' ||
     type === 'financial-no-decimals';
+  const sharedProps = {
+    style,
+    'data-testid': name,
+    'data-cellname': name,
+    ...props,
+  };
+
+  if (isFinancial) {
+    return (
+      <FinancialText
+        {...sharedProps}
+        style={{
+          whiteSpace: 'nowrap',
+          ...style,
+        }}
+      >
+        <PrivacyFilter
+          activationFilters={[PRIVACY_FILTER_TYPES.includes(type)]}
+        >
+          {formatter ? formatter(value, type) : format(value, type)}
+        </PrivacyFilter>
+      </FinancialText>
+    );
+  }
+
   return (
-    <Text
-      style={{
-        ...(isFinancial && styles.tnum),
-        ...(isFinancial && { whiteSpace: 'nowrap' }),
-        ...style,
-      }}
-      data-testid={name}
-      data-cellname={name}
-      {...props}
-    >
+    <Text {...sharedProps}>
       <PrivacyFilter activationFilters={[PRIVACY_FILTER_TYPES.includes(type)]}>
         {formatter ? formatter(value, type) : format(value, type)}
       </PrivacyFilter>

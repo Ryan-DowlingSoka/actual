@@ -1,17 +1,17 @@
 import { useCallback, useMemo } from 'react';
 
-import * as monthUtils from 'loot-core/shared/months';
-import {
-  type ScheduleEntity,
-  type CategoryEntity,
-} from 'loot-core/types/models';
+import * as monthUtils from '@actual-app/core/shared/months';
+import type {
+  CategoryEntity,
+  ScheduleEntity,
+} from '@actual-app/core/types/models';
+
+import { categoryBalance } from '#spreadsheet/bindings';
 
 import { useCategory } from './useCategory';
 import { useCategoryScheduleGoalTemplates } from './useCategoryScheduleGoalTemplates';
 import { usePreviewTransactions } from './usePreviewTransactions';
 import { useSheetValue } from './useSheetValue';
-
-import { categoryBalance } from '@desktop-client/spreadsheet/bindings';
 
 type UseCategoryPreviewTransactionsProps = {
   categoryId: CategoryEntity['id'];
@@ -26,7 +26,7 @@ export function useCategoryPreviewTransactions({
   categoryId,
   month,
 }: UseCategoryPreviewTransactionsProps): UseCategoryPreviewTransactionsResult {
-  const category = useCategory(categoryId);
+  const { data: category } = useCategory(categoryId);
   const { schedules } = useCategoryScheduleGoalTemplates({
     category,
   });

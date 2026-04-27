@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
@@ -16,11 +16,11 @@ import {
 import { SvgCalendar3 } from '@actual-app/components/icons/v2';
 import { View } from '@actual-app/components/view';
 
+import { useIsTestEnv } from '#hooks/useIsTestEnv';
+import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
+
 import { Item } from './Item';
 import { SecondaryItem } from './SecondaryItem';
-
-import { useIsTestEnv } from '@desktop-client/hooks/useIsTestEnv';
-import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
 
 export function PrimaryButtons() {
   const { t } = useTranslation();

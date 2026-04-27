@@ -1,26 +1,25 @@
 // @ts-strict-ignore
-import { v4 as uuidv4 } from 'uuid';
 
-import { addTransactions } from '../server/accounts/sync';
-import { aqlQuery } from '../server/aql';
-import * as budgetActions from '../server/budget/actions';
-import * as budget from '../server/budget/base';
-import * as db from '../server/db';
-import { runHandler, runMutator } from '../server/mutators';
-import * as sheet from '../server/sheet';
-import { batchMessages, setSyncingMode } from '../server/sync';
-import * as monthUtils from '../shared/months';
-import { q } from '../shared/query';
-import type { Handlers } from '../types/handlers';
+import { addTransactions } from '#server/accounts/sync';
+import { aqlQuery } from '#server/aql';
+import * as budgetActions from '#server/budget/actions';
+import * as budget from '#server/budget/base';
+import * as db from '#server/db';
+import { runHandler, runMutator } from '#server/mutators';
+import * as sheet from '#server/sheet';
+import { batchMessages, setSyncingMode } from '#server/sync';
+import * as monthUtils from '#shared/months';
+import { q } from '#shared/query';
+import type { Handlers } from '#types/handlers';
 import type {
   CategoryGroupEntity,
   PayeeEntity,
   TransactionEntity,
-} from '../types/models';
+} from '#types/models';
 
 import { random } from './random';
 
-import { type CategoryGroupDefinition } from '.';
+import type { CategoryGroupDefinition } from '.';
 
 type MockPayeeEntity = Partial<PayeeEntity> & { bill?: boolean };
 
@@ -128,7 +127,7 @@ async function fillPrimaryChecking(
     );
 
     const transaction: TransactionEntity = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       amount,
       payee: payee.id,
       account: account.id,
@@ -145,21 +144,21 @@ async function fillPrimaryChecking(
           : pickRandom(expenseCategories).id;
       transaction.subtransactions = [
         {
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           date: currentDate,
           account: account.id,
           amount: a,
           category: pick(),
         },
         {
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           date: currentDate,
           account: account.id,
           amount: a,
           category: pick(),
         },
         {
-          id: uuidv4(),
+          id: crypto.randomUUID(),
           date: currentDate,
           account: account.id,
           amount: transaction.amount - a * 2,
@@ -429,7 +428,7 @@ async function fillOther(handlers, account, payees, groups) {
 
   const transactions: TransactionEntity[] = [
     {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       amount: integer(3250, 3700) * 100 * 100,
       payee: payees.find(p => p.name === 'Starting Balance').id,
       account: account.id,
@@ -444,7 +443,7 @@ async function fillOther(handlers, account, payees, groups) {
     const amount = integer(4, 9) * 100 * 100;
 
     transactions.push({
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       amount,
       payee: payee.id,
       account: account.id,
@@ -499,7 +498,7 @@ async function createBudget(accounts, payees, groups) {
     ) as number;
 
     if (spent < 0) {
-      setBudget(month, cat, -spent);
+      void setBudget(month, cat, -spent);
     }
   }
 
@@ -510,19 +509,19 @@ async function createBudget(accounts, payees, groups) {
           month >=
           monthUtils.monthFromDate(db.fromDateRepr(earliestPrimaryDate))
         ) {
-          setBudget(month, category('Food'), 40000);
-          setBudget(month, category('Restaurants'), 30000);
-          setBudget(month, category('Entertainment'), 10000);
-          setBudget(month, category('Clothing'), 3000);
-          setBudget(month, category('General'), 50000);
-          setBudget(month, category('Gift'), 7500);
-          setBudget(month, category('Medical'), 10000);
+          void setBudget(month, category('Food'), 40000);
+          void setBudget(month, category('Restaurants'), 30000);
+          void setBudget(month, category('Entertainment'), 10000);
+          void setBudget(month, category('Clothing'), 3000);
+          void setBudget(month, category('General'), 50000);
+          void setBudget(month, category('Gift'), 7500);
+          void setBudget(month, category('Medical'), 10000);
 
-          setBudget(month, category('Cell'), 7500);
-          setBudget(month, category('Internet'), 6000);
-          setBudget(month, category('Mortgage'), 120000);
-          setBudget(month, category('Water'), 9000);
-          setBudget(month, category('Power'), 10000);
+          void setBudget(month, category('Cell'), 7500);
+          void setBudget(month, category('Internet'), 6000);
+          void setBudget(month, category('Mortgage'), 120000);
+          void setBudget(month, category('Water'), 9000);
+          void setBudget(month, category('Power'), 10000);
         } else {
           setBudgetIfSpent(month, category('Food'));
           setBudgetIfSpent(month, category('Restaurants'));
@@ -561,12 +560,12 @@ async function createBudget(accounts, payees, groups) {
           const available = toBudget - prevSaved;
 
           if (available - 403000 > 0) {
-            setBudget(month, category('Savings'), available - 403000);
-            budgetActions.setBuffer(month, 403000);
+            void setBudget(month, category('Savings'), available - 403000);
+            void budgetActions.setBuffer(month, 403000);
 
             prevSaved += available - 403000;
           } else if (available > 0) {
-            budgetActions.setBuffer(month, available);
+            void budgetActions.setBuffer(month, available);
           }
         }
       }
@@ -597,13 +596,13 @@ async function createBudget(accounts, payees, groups) {
 export async function createTestBudget(handlers: Handlers) {
   setSyncingMode('import');
 
-  await db.execQuery('PRAGMA journal_mode = OFF');
+  db.execQuery('PRAGMA journal_mode = OFF');
 
   // Clear out the default categories. This is fine to do without
   // going through the sync system because we are in import mode and
   // these aren't tracked through messages anyway.
-  await db.runQuery('DELETE FROM categories;');
-  await db.runQuery('DELETE FROM category_groups');
+  db.runQuery('DELETE FROM categories;');
+  db.runQuery('DELETE FROM category_groups');
 
   const accounts: { name: string; offBudget?: boolean; id?: string }[] = [
     { name: 'Bank of America' },

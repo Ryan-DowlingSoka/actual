@@ -1,15 +1,12 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { Handlers } from '@actual-app/core/types/handlers';
+import { createSlice } from '@reduxjs/toolkit';
+import type { PayloadAction } from '@reduxjs/toolkit';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { type Handlers } from 'loot-core/types/handlers';
-
-import { resetApp } from '@desktop-client/app/appSlice';
-import {
-  closeBudget,
-  loadAllFiles,
-} from '@desktop-client/budgetfiles/budgetfilesSlice';
-import { loadGlobalPrefs } from '@desktop-client/prefs/prefsSlice';
-import { createAppAsyncThunk } from '@desktop-client/redux';
+import { resetApp } from '#app/appSlice';
+import { closeBudget, loadAllFiles } from '#budgetfiles/budgetfilesSlice';
+import { loadGlobalPrefs } from '#prefs/prefsSlice';
+import { createAppAsyncThunk } from '#redux';
 
 const sliceName = 'user';
 
@@ -41,7 +38,7 @@ export const loggedIn = createAppAsyncThunk(
     // their account is invalid. So we should list all their files
     // regardless. Previously, we kicked users out to a "need payment
     // info" screen and we didn't want to call this.
-    dispatch(loadAllFiles());
+    void dispatch(loadAllFiles());
   },
 );
 
@@ -50,16 +47,16 @@ export const signOut = createAppAsyncThunk(
   async (_, { dispatch }) => {
     await send('subscribe-sign-out');
 
-    dispatch(getUserData());
-    dispatch(loadGlobalPrefs());
-    dispatch(closeBudget());
+    void dispatch(getUserData());
+    void dispatch(loadGlobalPrefs());
+    void dispatch(closeBudget());
     // Handled in budgetSlice
     // dispatch({ type: constants.SIGN_OUT });
   },
 );
 
 type UsersState = {
-  data: Awaited<ReturnType<Handlers['subscribe-get-user']>>;
+  data: Awaited<ReturnType<Handlers['subscribe-get-user']>> | null;
 };
 
 const initialState: UsersState = {

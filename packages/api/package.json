@@ -1,37 +1,63 @@
 {
   "name": "@actual-app/api",
-  "version": "26.1.0",
-  "license": "MIT",
+  "version": "26.4.0",
   "description": "An API for Actual",
-  "engines": {
-    "node": ">=20"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/actualbudget/actual.git",
+    "directory": "packages/api"
   },
+  "files": [
+    "@types",
+    "dist"
+  ],
   "main": "dist/index.js",
   "types": "@types/index.d.ts",
-  "files": [
-    "dist",
-    "@types"
-  ],
+  "exports": {
+    ".": {
+      "types": "./@types/index.d.ts",
+      "development": "./index.ts",
+      "default": "./dist/index.js"
+    },
+    "./models": {
+      "types": "./@types/models.d.ts",
+      "development": "./models.ts",
+      "default": "./dist/models.js"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./@types/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./models": {
+        "types": "./@types/models.d.ts",
+        "default": "./dist/models.js"
+      }
+    }
+  },
   "scripts": {
-    "build:app": "yarn workspace loot-core build:api",
-    "build:crdt": "yarn workspace @actual-app/crdt build",
-    "build:node": "tsc --p tsconfig.dist.json && tsc-alias -p tsconfig.dist.json",
-    "build:migrations": "cp migrations/*.sql dist/migrations",
-    "build:default-db": "cp default-db.sqlite dist/",
-    "build": "yarn run clean && yarn run build:app && yarn run build:node && yarn run build:migrations && yarn run build:default-db",
-    "test": "yarn run clean && yarn run build:app && yarn run build:crdt && vitest --run",
-    "clean": "rm -rf dist @types"
+    "build": "vite build && tsgo --emitDeclarationOnly",
+    "test": "vitest --run",
+    "typecheck": "tsgo -b && tsc-strict"
   },
   "dependencies": {
-    "@actual-app/crdt": "workspace:^",
-    "better-sqlite3": "^12.4.1",
-    "compare-versions": "^6.1.1",
-    "node-fetch": "^3.3.2",
-    "uuid": "^13.0.0"
+    "@actual-app/core": "workspace:*",
+    "@actual-app/crdt": "workspace:*",
+    "better-sqlite3": "^12.8.0",
+    "compare-versions": "^6.1.1"
   },
   "devDependencies": {
-    "tsc-alias": "^1.8.16",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.9"
+    "@typescript/native-preview": "beta",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "typescript-strict-plugin": "^2.4.4",
+    "vite": "^8.0.5",
+    "vite-plugin-peggy-loader": "^2.0.1",
+    "vitest": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

@@ -50,6 +50,8 @@ module.exports = {
         },
         blog: {
           ...defaultOptions,
+          blogSidebarTitle: 'All posts',
+          blogSidebarCount: 'ALL',
           feedOptions: {
             type: 'rss',
             title: 'Actual Budget Blog',
@@ -70,9 +72,10 @@ module.exports = {
     ({
       image: 'img/og.webp',
       navbar: {
+        title: 'Actual Budget',
         logo: {
           alt: 'Actual Open Source',
-          src: 'img/actual.webp',
+          src: 'img/logo.webp',
         },
         items: [
           {
@@ -80,6 +83,12 @@ module.exports = {
             // never render as active
             activeBaseRegex: '^$',
             label: 'Features',
+            position: 'left',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'tourSidebar',
+            label: 'Tour',
             position: 'left',
           },
           {
@@ -196,7 +205,7 @@ module.exports = {
         max: 1030, // max resized image's size.
         min: 640, // min resized image's size. if original is lower, use that size.
         steps: 2, // the max number of images generated between min and max (inclusive)
-        disableInDev: false
+        disableInDev: false,
       },
     ],
     [

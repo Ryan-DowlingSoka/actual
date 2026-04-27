@@ -4,19 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
 
-import * as monthUtils from 'loot-core/shared/months';
-
-import { CategoryAutocomplete } from '@desktop-client/components/autocomplete/CategoryAutocomplete';
+import { CategoryAutocomplete } from '#components/autocomplete/CategoryAutocomplete';
 import {
-  ModalCloseButton,
   Modal,
-  ModalTitle,
+  ModalCloseButton,
   ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { SectionLabel } from '@desktop-client/components/forms';
-import { SheetNameProvider } from '@desktop-client/hooks/useSheetName';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+  ModalTitle,
+} from '#components/common/Modal';
+import { SectionLabel } from '#components/forms';
+import { SheetNameProvider } from '#hooks/useSheetName';
+import type { Modal as ModalType } from '#modals/modalsSlice';
 
 type CategoryAutocompleteModalProps = Extract<
   ModalType,
@@ -54,7 +53,7 @@ export function CategoryAutocompleteModal({
         },
       }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           {isNarrowWidth && (
             <ModalHeader
@@ -66,7 +65,7 @@ export function CategoryAutocompleteModal({
               }
               rightContent={
                 <ModalCloseButton
-                  onPress={close}
+                  onPress={() => state.close()}
                   style={{ color: theme.menuAutoCompleteText }}
                 />
               }
@@ -94,7 +93,7 @@ export function CategoryAutocompleteModal({
                   closeOnSelect={closeOnSelect}
                   clearOnSelect={clearOnSelect}
                   showSplitOption={false}
-                  onClose={close}
+                  onClose={() => state.close()}
                   {...defaultAutocompleteProps}
                   onSelect={onSelect}
                   categoryGroups={categoryGroups}

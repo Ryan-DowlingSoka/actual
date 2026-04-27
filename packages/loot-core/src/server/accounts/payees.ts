@@ -1,7 +1,6 @@
-// @ts-strict-ignore
-import * as db from '../db';
+import * as db from '#server/db';
 
-export async function createPayee(description) {
+export async function createPayee(description: string) {
   // Check to make sure no payee already exists with exactly the same
   // name
   const row = await db.first<Pick<db.DbPayee, 'id'>>(

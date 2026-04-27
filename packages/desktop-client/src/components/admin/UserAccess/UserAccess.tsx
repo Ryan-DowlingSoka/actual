@@ -1,50 +1,39 @@
 // @ts-strict-ignore
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  type SetStateAction,
-  type Dispatch,
-  type CSSProperties,
-} from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SvgLockOpen } from '@actual-app/components/icons/v1';
 import { SvgLockClosed } from '@actual-app/components/icons/v2';
+import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import * as undo from '@actual-app/core/platform/client/undo';
+import type { Handlers } from '@actual-app/core/types/handlers';
+import type {
+  UserAccessEntity,
+  UserAvailable,
+} from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
-import * as undo from 'loot-core/platform/client/undo';
-import { type Handlers } from 'loot-core/types/handlers';
-import {
-  type UserAvailable,
-  type UserAccessEntity,
-} from 'loot-core/types/models';
+import { InfiniteScrollWrapper } from '#components/common/InfiniteScrollWrapper';
+import { Link } from '#components/common/Link';
+import { Search } from '#components/common/Search';
+import { useMetadataPref } from '#hooks/useMetadataPref';
+import { pushModal } from '#modals/modalsSlice';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
 
 import { UserAccessHeader } from './UserAccessHeader';
 import { UserAccessRow } from './UserAccessRow';
 
-import { InfiniteScrollWrapper } from '@desktop-client/components/common/InfiniteScrollWrapper';
-import { Link } from '@desktop-client/components/common/Link';
-import { Search } from '@desktop-client/components/common/Search';
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
-
 type ManageUserAccessContentProps = {
   isModal: boolean;
-  setLoading?: Dispatch<SetStateAction<boolean>>;
 };
 
-function UserAccessContent({
-  isModal,
-  setLoading,
-}: ManageUserAccessContentProps) {
+function UserAccessContent({ isModal }: ManageUserAccessContentProps) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const [allAccess, setAllAccess] = useState([]);
@@ -76,7 +65,6 @@ function UserAccessContent({
   );
 
   const loadAccess = useCallback(async () => {
-    setLoading(true);
     const data: Awaited<ReturnType<Handlers['access-get-available-users']>> =
       await send('access-get-available-users', cloudFileId as string);
 
@@ -111,20 +99,7 @@ function UserAccessContent({
 
     setAllAccess(loadedAccess);
     return loadedAccess;
-  }, [cloudFileId, dispatch, setLoading, t]);
-
-  const loadOwner = useCallback(async () => {
-    const file = (await send('get-user-file-info', cloudFileId as string)) ?? {
-      usersWithAccess: [],
-    };
-    const owner = file?.usersWithAccess.filter(user => user.owner);
-
-    if (owner.length > 0) {
-      return owner[0];
-    }
-
-    return null;
-  }, [cloudFileId]);
+  }, [cloudFileId, dispatch, t]);
 
   useEffect(() => {
     async function loadData() {
@@ -132,17 +107,15 @@ function UserAccessContent({
         await loadAccess();
       } catch (error) {
         console.error('Error loading user access data:', error);
-      } finally {
-        setLoading(false);
       }
     }
 
-    loadData();
+    void loadData();
 
     return () => {
       undo.setUndoState('openModal', null);
     };
-  }, [setLoading, loadAccess, loadOwner]);
+  }, [loadAccess]);
 
   function loadMore() {
     setPage(page => page + 1);
@@ -190,7 +163,7 @@ function UserAccessContent({
           onChange={onSearchChange}
         />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.tableContainer}>
         <UserAccessHeader />
         <InfiniteScrollWrapper loadMore={loadMore}>
           <UserAccessList
@@ -213,7 +186,6 @@ function UserAccessContent({
           style={{ width: 16, height: 16 }}
           onToggleSave={async () => {
             await loadAccess();
-            setLoading(false);
           }}
         />
       </View>
@@ -223,14 +195,10 @@ function UserAccessContent({
 
 type ManageUsersProps = {
   isModal: boolean;
-  setLoading?: Dispatch<SetStateAction<boolean>>;
 };
 
-export function UserAccess({
-  isModal,
-  setLoading = () => {},
-}: ManageUsersProps) {
-  return <UserAccessContent isModal={isModal} setLoading={setLoading} />;
+export function UserAccess({ isModal }: ManageUsersProps) {
+  return <UserAccessContent isModal={isModal} />;
 }
 
 type UsersAccessListProps = {

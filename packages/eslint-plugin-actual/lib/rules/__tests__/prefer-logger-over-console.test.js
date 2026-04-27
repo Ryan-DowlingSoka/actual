@@ -1,8 +1,9 @@
 import { runClassic } from 'eslint-vitest-rule-tester';
 
-import * as rule from '../prefer-logger-over-console';
+import plugin from '../../index';
+const rule = plugin.rules['prefer-logger-over-console'];
 
-runClassic(
+void runClassic(
   'prefer-logger-over-console',
   rule,
   {

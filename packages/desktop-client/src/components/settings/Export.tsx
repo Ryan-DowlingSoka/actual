@@ -5,13 +5,12 @@ import { Block } from '@actual-app/components/block';
 import { ButtonWithLoading } from '@actual-app/components/button';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
+import { send } from '@actual-app/core/platform/client/connection';
 import { format } from 'date-fns';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { useMetadataPref } from '#hooks/useMetadataPref';
 
 import { Setting } from './UI';
-
-import { useMetadataPref } from '@desktop-client/hooks/useMetadataPref';
 
 export function ExportBudget() {
   const { t } = useTranslation();
@@ -34,7 +33,7 @@ export function ExportBudget() {
     }
 
     if (response.data) {
-      window.Actual.saveFile(
+      void window.Actual.saveFile(
         response.data,
         `${format(new Date(), 'yyyy-MM-dd')}-${budgetName}.zip`,
         t('Export budget'),

@@ -1,4 +1,5 @@
-import React, { type RefObject, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import type { RefObject } from 'react';
 import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 
@@ -8,10 +9,9 @@ import { SpaceBetween } from '@actual-app/components/space-between';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import type { CustomReportEntity } from '@actual-app/core/types/models';
 
-import { type CustomReportEntity } from 'loot-core/types/models';
-
-import { FormField, FormLabel } from '@desktop-client/components/forms';
+import { FormField, FormLabel } from '#components/forms';
 
 type SaveReportNameProps = {
   menuItem: string;
@@ -44,7 +44,7 @@ export function SaveReportName({
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, []);
+  }, [inputRef]);
 
   return (
     <>

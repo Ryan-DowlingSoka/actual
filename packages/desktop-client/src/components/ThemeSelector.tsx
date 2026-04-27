@@ -1,4 +1,5 @@
-import React, { useRef, useState, type CSSProperties } from 'react';
+import React, { useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
@@ -10,10 +11,9 @@ import {
 } from '@actual-app/components/icons/v2';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
+import type { Theme } from '@actual-app/core/types/prefs';
 
-import type { Theme } from 'loot-core/types/prefs';
-
-import { themeOptions, useTheme } from '@desktop-client/style';
+import { themeOptions, useTheme } from '#style';
 
 type ThemeSelectorProps = {
   style?: CSSProperties;
@@ -32,7 +32,6 @@ export function ThemeSelector({ style }: ThemeSelectorProps) {
     dark: SvgMoonStars,
     auto: SvgSystem,
     midnight: SvgMoonStars,
-    development: SvgMoonStars,
   } as const;
 
   type ThemeIconKey = keyof typeof themeIcons;

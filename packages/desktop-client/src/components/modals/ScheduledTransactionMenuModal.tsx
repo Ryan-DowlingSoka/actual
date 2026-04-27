@@ -1,8 +1,5 @@
-import React, {
-  useMemo,
-  type ComponentPropsWithoutRef,
-  type CSSProperties,
-} from 'react';
+import React, { useMemo } from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Menu } from '@actual-app/components/menu';
@@ -10,23 +7,22 @@ import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
-
-import { format } from 'loot-core/shared/months';
-import { q } from 'loot-core/shared/query';
+import { format } from '@actual-app/core/shared/months';
+import { q } from '@actual-app/core/shared/query';
 import {
-  scheduleIsRecurring,
   extractScheduleConds,
-} from 'loot-core/shared/schedules';
+  scheduleIsRecurring,
+} from '@actual-app/core/shared/schedules';
 
 import {
   Modal,
   ModalCloseButton,
   ModalHeader,
   ModalTitle,
-} from '@desktop-client/components/common/Modal';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useSchedules } from '@desktop-client/hooks/useSchedules';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+} from '#components/common/Modal';
+import { useLocale } from '#hooks/useLocale';
+import { useSchedules } from '#hooks/useSchedules';
+import type { Modal as ModalType } from '#modals/modalsSlice';
 
 type ScheduledTransactionMenuModalProps = Extract<
   ModalType,
@@ -67,11 +63,11 @@ export function ScheduledTransactionMenuModal({
 
   return (
     <Modal name="scheduled-transaction-menu">
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={<ModalTitle title={schedule?.name || ''} shrinkOnOverflow />}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View
             style={{

@@ -1,16 +1,16 @@
 import { useEffect } from 'react';
 
-import { send } from 'loot-core/platform/client/fetch';
+import { send } from '@actual-app/core/platform/client/connection';
 
-import { useDispatch } from '@desktop-client/redux';
-import { loggedIn } from '@desktop-client/users/usersSlice';
+import { useDispatch } from '#redux';
+import { loggedIn } from '#users/usersSlice';
 
 export function OpenIdCallback() {
   const dispatch = useDispatch();
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get('token');
-    send('subscribe-set-token', { token: token as string }).then(() => {
-      dispatch(loggedIn());
+    void send('subscribe-set-token', { token: token as string }).then(() => {
+      void dispatch(loggedIn());
     });
   });
   return null;

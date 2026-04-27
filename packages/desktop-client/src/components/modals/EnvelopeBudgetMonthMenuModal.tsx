@@ -8,24 +8,20 @@ import {
   SvgCheveronUp,
 } from '@actual-app/components/icons/v1';
 import { SvgNotesPaper } from '@actual-app/components/icons/v2';
-import { styles, type CSSProperties } from '@actual-app/components/styles';
+import { styles } from '@actual-app/components/styles';
+import type { CSSProperties } from '@actual-app/components/styles';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import * as monthUtils from '@actual-app/core/shared/months';
 import { css } from '@emotion/css';
 
-import * as monthUtils from 'loot-core/shared/months';
-
-import { BudgetMonthMenu } from '@desktop-client/components/budget/envelope/budgetsummary/BudgetMonthMenu';
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { Notes } from '@desktop-client/components/Notes';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { useNotes } from '@desktop-client/hooks/useNotes';
-import { useUndo } from '@desktop-client/hooks/useUndo';
-import { type Modal as ModalType } from '@desktop-client/modals/modalsSlice';
+import { BudgetMonthMenu } from '#components/budget/envelope/budgetsummary/BudgetMonthMenu';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { Notes } from '#components/Notes';
+import { useLocale } from '#hooks/useLocale';
+import { useNotes } from '#hooks/useNotes';
+import { useUndo } from '#hooks/useUndo';
+import type { Modal as ModalType } from '#modals/modalsSlice';
 
 type EnvelopeBudgetMonthMenuModalProps = Extract<
   ModalType,
@@ -76,11 +72,11 @@ export function EnvelopeBudgetMonthMenuModal({
         style: { height: '50vh' },
       }}
     >
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={displayMonth}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View
             style={{
@@ -167,7 +163,7 @@ export function EnvelopeBudgetMonthMenuModal({
                 getItemStyle={() => defaultMenuItemStyle}
                 onCopyLastMonthBudget={() => {
                   onBudgetAction(month, 'copy-last');
-                  close();
+                  state.close();
                   showUndoNotification({
                     message: t(
                       "{{displayMonth}} budgets have all been set to last month's budgeted amounts.",
@@ -177,7 +173,7 @@ export function EnvelopeBudgetMonthMenuModal({
                 }}
                 onSetBudgetsToZero={() => {
                   onBudgetAction(month, 'set-zero');
-                  close();
+                  state.close();
                   showUndoNotification({
                     message: t(
                       '{{displayMonth}} budgets have all been set to zero.',
@@ -187,18 +183,18 @@ export function EnvelopeBudgetMonthMenuModal({
                 }}
                 onSetMonthsAverage={numberOfMonths => {
                   onBudgetAction(month, `set-${numberOfMonths}-avg`);
-                  close();
+                  state.close();
                   showUndoNotification({
                     message: `${displayMonth} budgets have all been set to ${numberOfMonths === 12 ? 'yearly' : `${numberOfMonths} month`} average.`,
                   });
                 }}
                 onCheckTemplates={() => {
                   onBudgetAction(month, 'check-templates');
-                  close();
+                  state.close();
                 }}
                 onApplyBudgetTemplates={() => {
                   onBudgetAction(month, 'apply-goal-template');
-                  close();
+                  state.close();
                   showUndoNotification({
                     message: t(
                       '{{displayMonth}} budget templates have been applied.',
@@ -208,7 +204,7 @@ export function EnvelopeBudgetMonthMenuModal({
                 }}
                 onOverwriteWithBudgetTemplates={() => {
                   onBudgetAction(month, 'overwrite-goal-template');
-                  close();
+                  state.close();
                   showUndoNotification({
                     message: t(
                       '{{displayMonth}} budget templates have been overwritten.',
@@ -218,7 +214,7 @@ export function EnvelopeBudgetMonthMenuModal({
                 }}
                 onEndOfMonthCleanup={() => {
                   onBudgetAction(month, 'cleanup-goal-template');
-                  close();
+                  state.close();
                   showUndoNotification({
                     message: t(
                       '{{displayMonth}} end-of-month cleanup templates have been applied.',

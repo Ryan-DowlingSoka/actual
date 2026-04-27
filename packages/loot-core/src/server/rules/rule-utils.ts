@@ -1,13 +1,13 @@
 // @ts-strict-ignore
 import * as dateFns from 'date-fns';
 
-import { logger } from '../../platform/server/log';
-import { recurConfigToRSchedule } from '../../shared/schedules';
-import { type RuleConditionEntity } from '../../types/models';
-import { RuleError } from '../errors';
-import { RSchedule } from '../util/rschedule';
+import { logger } from '#platform/server/log';
+import { RuleError } from '#server/errors';
+import { RSchedule } from '#server/util/rschedule';
+import { recurConfigToRSchedule } from '#shared/schedules';
+import type { RuleConditionEntity } from '#types/models';
 
-import { type Rule } from './rule';
+import type { Rule } from './rule';
 
 export function assert(test: unknown, type: string, msg: string): asserts test {
   if (!test) {

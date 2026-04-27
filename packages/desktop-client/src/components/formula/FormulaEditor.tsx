@@ -1,15 +1,13 @@
 import { useMemo } from 'react';
 
 import { EditorView } from '@codemirror/view';
-import CodeMirror, {
-  EditorState,
-  type ReactCodeMirrorProps,
-} from '@uiw/react-codemirror';
+import CodeMirror, { EditorState } from '@uiw/react-codemirror';
+import type { ReactCodeMirrorProps } from '@uiw/react-codemirror';
+
+import { autocompleteTabAcceptHighest } from '#components/codemirror/autocompleteTabAccept';
+import { useTheme } from '#style/theme';
 
 import { excelFormulaExtension } from './codeMirror-excelLanguage';
-
-import { autocompleteTabAcceptHighest } from '@desktop-client/components/codemirror/autocompleteTabAccept';
-import { useTheme } from '@desktop-client/style/theme';
 
 type FormulaMode = 'transaction' | 'query';
 

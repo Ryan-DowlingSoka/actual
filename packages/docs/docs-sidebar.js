@@ -13,27 +13,20 @@
 
 /** @type {import('@docusaurus/plugin-content-docs').SidebarsConfig} */
 const sidebars = {
+  tourSidebar: [
+    'tour/index',
+    'tour/user-interface',
+    'tour/budget',
+    'tour/accounts',
+    'tour/reports',
+    'tour/schedules',
+    'tour/payees',
+    'tour/rules',
+  ],
   docs: [
     'index',
     'vision',
     'releases',
-    {
-      type: 'category',
-      label: 'A Tour of Actual',
-      link: {
-        type: 'doc',
-        id: 'tour/index',
-      },
-      items: [
-        'tour/user-interface',
-        'tour/budget',
-        'tour/accounts',
-        'tour/reports',
-        'tour/schedules',
-        'tour/payees',
-        'tour/rules',
-      ],
-    },
     {
       type: 'category',
       label: 'Getting Started',
@@ -168,6 +161,7 @@ const sidebars = {
             'transactions/payees',
             'transactions/bulk-editing',
             'transactions/tags',
+            'transactions/split-transactions',
             {
               type: 'category',
               label: 'Connecting Your Bank',
@@ -178,6 +172,7 @@ const sidebars = {
               items: [
                 'advanced/bank-sync/gocardless',
                 'advanced/bank-sync/simplefin',
+                'advanced/bank-sync/pluggyai',
               ],
             },
             'advanced/scripts/modify-transfers',
@@ -185,7 +180,7 @@ const sidebars = {
         },
         {
           type: 'category',
-          label: 'Reports',
+          label: 'Reports Dashboard',
           collapsed: true,
           link: {
             type: 'doc',
@@ -216,8 +211,9 @@ const sidebars = {
             'experimental/monthly-cleanup',
             'experimental/rule-templating',
             'experimental/formulas',
-            'experimental/pluggyai',
             'experimental/crossover-point-report',
+            'experimental/custom-themes',
+            'experimental/budget-analysis-report',
           ],
         },
         'getting-started/tips-tricks',
@@ -228,6 +224,7 @@ const sidebars = {
           link: { type: 'doc', id: 'api/index' },
           items: [
             'api/reference',
+            'api/cli',
             {
               type: 'category',
               label: 'ActualQL',
@@ -300,6 +297,7 @@ const sidebars = {
             'contributing/project-details/advice',
           ],
         },
+        'contributing/ai-usage-policy',
         'contributing/development-setup',
         'contributing/testing',
         'contributing/code-style',
@@ -324,6 +322,7 @@ const sidebars = {
             'contributing/leadership/funding',
             'contributing/leadership/triaging-issues',
             'contributing/leadership/new-core-contributors-guide',
+            'contributing/leadership/architecture-decision-records',
             'contributing/leadership/cursor-ide',
             'contributing/leadership/paying-contributors',
           ],

@@ -1,12 +1,12 @@
+import * as db from '#server/db';
+import * as sheet from '#server/sheet';
+import { resolveName } from '#server/spreadsheet/util';
 // @ts-strict-ignore
-import * as monthUtils from '../../shared/months';
-import { safeNumber } from '../../shared/util';
-import * as db from '../db';
-import * as sheet from '../sheet';
-import { resolveName } from '../spreadsheet/util';
+import * as monthUtils from '#shared/months';
+import { safeNumber } from '#shared/util';
 
 import { createCategory as createCategoryFromBase } from './base';
-import { number, sumAmounts, flatten2, unflatten2 } from './util';
+import { flatten2, number, sumAmounts, unflatten2 } from './util';
 
 function getBlankSheet(months) {
   const blankMonth = monthUtils.prevMonth(months[0]);

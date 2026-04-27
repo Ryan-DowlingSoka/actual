@@ -1,21 +1,22 @@
 // @ts-strict-ignore
-import React, { useState, type CSSProperties } from 'react';
+import React, { useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
+import { getMonthYearFormat } from '@actual-app/core/shared/months';
+import { getRecurringDescription } from '@actual-app/core/shared/schedules';
 import { format as formatDate, parseISO } from 'date-fns';
 
-import { getMonthYearFormat } from 'loot-core/shared/months';
-import { getRecurringDescription } from 'loot-core/shared/schedules';
-
-import { Link } from '@desktop-client/components/common/Link';
-import { useAccounts } from '@desktop-client/hooks/useAccounts';
-import { useCategories } from '@desktop-client/hooks/useCategories';
-import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useFormat } from '@desktop-client/hooks/useFormat';
-import { useLocale } from '@desktop-client/hooks/useLocale';
-import { usePayees } from '@desktop-client/hooks/usePayees';
+import { Link } from '#components/common/Link';
+import { FinancialText } from '#components/FinancialText';
+import { useAccounts } from '#hooks/useAccounts';
+import { useCategories } from '#hooks/useCategories';
+import { useDateFormat } from '#hooks/useDateFormat';
+import { useFormat } from '#hooks/useFormat';
+import { useLocale } from '#hooks/useLocale';
+import { usePayees } from '#hooks/usePayees';
 
 type ValueProps<T> = {
   value: T;
@@ -40,24 +41,45 @@ export function Value<T>({
   const { t } = useTranslation();
   const format = useFormat();
   const dateFormat = useDateFormat() || 'MM/dd/yyyy';
-  const payees = usePayees();
-  const { list: categories } = useCategories();
-  const accounts = useAccounts();
+  const { data: payees } = usePayees();
+  const {
+    data: { list: categories, grouped: categoryGroups } = {
+      list: [],
+      grouped: [],
+    },
+  } = useCategories();
+  const { data: accounts = [] } = useAccounts();
   const valueStyle = {
     color: theme.pageTextPositive,
     ...style,
   };
+  const ValueText = field === 'amount' ? FinancialText : Text;
   const locale = useLocale();
 
-  const data =
-    dataProp ||
-    (field === 'payee'
-      ? payees
-      : field === 'category'
-        ? categories
-        : field === 'account'
-          ? accounts
-          : []);
+  function getData() {
+    if (dataProp) {
+      return dataProp;
+    }
+
+    switch (field) {
+      case 'payee':
+        return payees;
+
+      case 'category':
+        return categories;
+
+      case 'category_group':
+        return categoryGroups;
+
+      case 'account':
+        return accounts;
+
+      default:
+        return [];
+    }
+  }
+
+  const data = getData();
 
   const [expanded, setExpanded] = useState(false);
 
@@ -74,6 +96,8 @@ export function Value<T>({
     } else {
       switch (field) {
         case 'amount':
+        case 'amount-inflow':
+        case 'amount-outflow':
           return format(value, 'financial');
         case 'date':
           if (value) {
@@ -95,6 +119,7 @@ export function Value<T>({
           return value;
         case 'payee':
         case 'category':
+        case 'category_group':
         case 'account':
         case 'rule':
           if (valueIsRaw) {
@@ -111,18 +136,18 @@ export function Value<T>({
 
           return '…';
         default:
-          throw new Error(`Unknown field ${field}`);
+          throw new Error(`Unknown field ${String(field)}`);
       }
     }
   }
 
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return <Text style={valueStyle}>(empty)</Text>;
+      return <ValueText style={valueStyle}>(empty)</ValueText>;
     } else if (value.length === 1) {
       return (
         <Text>
-          [<Text style={valueStyle}>{formatValue(value[0])}</Text>]
+          [<ValueText style={valueStyle}>{formatValue(value[0])}</ValueText>]
         </Text>
       );
     }
@@ -136,7 +161,9 @@ export function Value<T>({
       <Text style={{ color: theme.tableText }}>
         [
         {displayed.map((v, i) => {
-          const text = <Text style={valueStyle}>{formatValue(v)}</Text>;
+          const text = (
+            <ValueText style={valueStyle}>{formatValue(v)}</ValueText>
+          );
           let spacing;
           if (inline) {
             spacing = i !== 0 ? ' ' : '';
@@ -177,11 +204,11 @@ export function Value<T>({
     const { num1, num2 } = value;
     return (
       <Text>
-        <Text style={valueStyle}>{formatValue(num1)}</Text> {t('and')}{' '}
-        <Text style={valueStyle}>{formatValue(num2)}</Text>
+        <ValueText style={valueStyle}>{formatValue(num1)}</ValueText> {t('and')}{' '}
+        <ValueText style={valueStyle}>{formatValue(num2)}</ValueText>
       </Text>
     );
   } else {
-    return <Text style={valueStyle}>{formatValue(value)}</Text>;
+    return <ValueText style={valueStyle}>{formatValue(value)}</ValueText>;
   }
 }

@@ -1,24 +1,23 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router';
 
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
+import { q } from '@actual-app/core/shared/query';
+import type { NewRuleEntity, RuleEntity } from '@actual-app/core/types/models';
 
-import { send } from 'loot-core/platform/client/fetch';
-import { q } from 'loot-core/shared/query';
-import { type RuleEntity, type NewRuleEntity } from 'loot-core/types/models';
-
-import { MobileBackButton } from '@desktop-client/components/mobile/MobileBackButton';
-import { MobilePageHeader, Page } from '@desktop-client/components/Page';
-import { RuleEditor } from '@desktop-client/components/rules/RuleEditor';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { useSchedules } from '@desktop-client/hooks/useSchedules';
-import { useUndo } from '@desktop-client/hooks/useUndo';
-import { pushModal } from '@desktop-client/modals/modalsSlice';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { MobileBackButton } from '#components/mobile/MobileBackButton';
+import { MobilePageHeader, Page } from '#components/Page';
+import { RuleEditor } from '#components/rules/RuleEditor';
+import { useNavigate } from '#hooks/useNavigate';
+import { useSchedules } from '#hooks/useSchedules';
+import { useUndo } from '#hooks/useUndo';
+import { pushModal } from '#modals/modalsSlice';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
 
 export function MobileRuleEditPage() {
   const { t } = useTranslation();
@@ -56,13 +55,13 @@ export function MobileRuleEditPage() {
             setRule(loadedRule);
           } else {
             // Rule not found, navigate back to rules list
-            navigate('/rules');
+            void navigate('/rules');
           }
         })
         .catch(error => {
           console.error('Failed to load rule:', error);
           // Navigate back to rules list if rule not found
-          navigate('/rules');
+          void navigate('/rules');
         })
         .finally(() => {
           setIsLoading(false);
@@ -100,11 +99,11 @@ export function MobileRuleEditPage() {
       });
     }
     // Navigate back to rules list
-    navigate('/rules');
+    void navigate('/rules');
   };
 
   const handleCancel = () => {
-    navigate(-1);
+    void navigate(-1);
   };
 
   const handleDelete = () => {
@@ -125,7 +124,7 @@ export function MobileRuleEditPage() {
                 showUndoNotification({
                   message: t('Rule deleted successfully'),
                 });
-                navigate('/rules');
+                void navigate('/rules');
               } catch (error) {
                 console.error('Failed to delete rule:', error);
                 dispatch(

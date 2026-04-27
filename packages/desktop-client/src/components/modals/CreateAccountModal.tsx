@@ -11,30 +11,23 @@ import { Popover } from '@actual-app/components/popover';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import { send } from '@actual-app/core/platform/client/connection';
 
-import { send } from 'loot-core/platform/client/fetch';
-
-import { useAuth } from '@desktop-client/auth/AuthProvider';
-import { Permissions } from '@desktop-client/auth/types';
-import { Warning } from '@desktop-client/components/alerts';
-import { Link } from '@desktop-client/components/common/Link';
-import {
-  Modal,
-  ModalCloseButton,
-  ModalHeader,
-} from '@desktop-client/components/common/Modal';
-import { useMultiuserEnabled } from '@desktop-client/components/ServerContext';
-import { authorizeBank } from '@desktop-client/gocardless';
-import { useGoCardlessStatus } from '@desktop-client/hooks/useGoCardlessStatus';
-import { usePluggyAiStatus } from '@desktop-client/hooks/usePluggyAiStatus';
-import { useSimpleFinStatus } from '@desktop-client/hooks/useSimpleFinStatus';
-import { useSyncServerStatus } from '@desktop-client/hooks/useSyncServerStatus';
-import {
-  type Modal as ModalType,
-  pushModal,
-} from '@desktop-client/modals/modalsSlice';
-import { addNotification } from '@desktop-client/notifications/notificationsSlice';
-import { useDispatch } from '@desktop-client/redux';
+import { useAuth } from '#auth/AuthProvider';
+import { Permissions } from '#auth/types';
+import { Warning } from '#components/alerts';
+import { Link } from '#components/common/Link';
+import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
+import { useMultiuserEnabled } from '#components/ServerContext';
+import { authorizeBank } from '#gocardless';
+import { useGoCardlessStatus } from '#hooks/useGoCardlessStatus';
+import { usePluggyAiStatus } from '#hooks/usePluggyAiStatus';
+import { useSimpleFinStatus } from '#hooks/useSimpleFinStatus';
+import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
+import { pushModal } from '#modals/modalsSlice';
+import type { Modal as ModalType } from '#modals/modalsSlice';
+import { addNotification } from '#notifications/notificationsSlice';
+import { useDispatch } from '#redux';
 
 type CreateAccountModalProps = Extract<
   ModalType,
@@ -67,9 +60,9 @@ export function CreateAccountModal({
     }
 
     if (upgradingAccountId == null) {
-      authorizeBank(dispatch);
+      void authorizeBank(dispatch);
     } else {
-      authorizeBank(dispatch);
+      void authorizeBank(dispatch);
     }
   };
 
@@ -259,11 +252,11 @@ export function CreateAccountModal({
   };
 
   const onGoCardlessReset = () => {
-    send('secret-set', {
+    void send('secret-set', {
       name: 'gocardless_secretId',
       value: null,
     }).then(() => {
-      send('secret-set', {
+      void send('secret-set', {
         name: 'gocardless_secretKey',
         value: null,
       }).then(() => {
@@ -273,11 +266,11 @@ export function CreateAccountModal({
   };
 
   const onSimpleFinReset = () => {
-    send('secret-set', {
+    void send('secret-set', {
       name: 'simplefin_token',
       value: null,
     }).then(() => {
-      send('secret-set', {
+      void send('secret-set', {
         name: 'simplefin_accessKey',
         value: null,
       }).then(() => {
@@ -287,15 +280,15 @@ export function CreateAccountModal({
   };
 
   const onPluggyAiReset = () => {
-    send('secret-set', {
+    void send('secret-set', {
       name: 'pluggyai_clientId',
       value: null,
     }).then(() => {
-      send('secret-set', {
+      void send('secret-set', {
         name: 'pluggyai_clientSecret',
         value: null,
       }).then(() => {
-        send('secret-set', {
+        void send('secret-set', {
           name: 'pluggyai_itemIds',
           value: null,
         }).then(() => {
@@ -337,11 +330,11 @@ export function CreateAccountModal({
 
   return (
     <Modal name="add-account">
-      {({ state: { close } }) => (
+      {({ state }) => (
         <>
           <ModalHeader
             title={title}
-            rightContent={<ModalCloseButton onPress={close} />}
+            rightContent={<ModalCloseButton onPress={() => state.close()} />}
           />
           <View style={{ maxWidth: 500, gap: 30, color: theme.pageText }}>
             {upgradingAccountId == null && (

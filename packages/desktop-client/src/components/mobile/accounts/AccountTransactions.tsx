@@ -1,34 +1,34 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { listen, send } from 'loot-core/platform/client/fetch';
-import { type Query } from 'loot-core/shared/query';
-import { isPreviewId } from 'loot-core/shared/transactions';
-import { type IntegerAmount } from 'loot-core/shared/util';
-import {
-  type AccountEntity,
-  type TransactionEntity,
-} from 'loot-core/types/models';
+import { send } from '@actual-app/core/platform/client/connection';
+import type { Query } from '@actual-app/core/shared/query';
+import { isPreviewId } from '@actual-app/core/shared/transactions';
+import type { IntegerAmount } from '@actual-app/core/shared/util';
+import type {
+  AccountEntity,
+  TransactionEntity,
+} from '@actual-app/core/types/models';
 
-import { markAccountRead } from '@desktop-client/accounts/accountsSlice';
-import { syncAndDownload } from '@desktop-client/app/appSlice';
-import { TransactionListWithBalances } from '@desktop-client/components/mobile/transactions/TransactionListWithBalances';
-import { useAccountPreviewTransactions } from '@desktop-client/hooks/useAccountPreviewTransactions';
-import { SchedulesProvider } from '@desktop-client/hooks/useCachedSchedules';
-import { useDateFormat } from '@desktop-client/hooks/useDateFormat';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { getSchedulesQuery } from '@desktop-client/hooks/useSchedules';
-import { useSheetValue } from '@desktop-client/hooks/useSheetValue';
-import { useSyncedPref } from '@desktop-client/hooks/useSyncedPref';
+import { useSyncAndDownloadMutation } from '#accounts';
+import { markAccountRead } from '#accounts/accountsSlice';
+import { TransactionListWithBalances } from '#components/mobile/transactions/TransactionListWithBalances';
+import { useAccountPreviewTransactions } from '#hooks/useAccountPreviewTransactions';
+import { SchedulesProvider } from '#hooks/useCachedSchedules';
+import { useDateFormat } from '#hooks/useDateFormat';
+import { useNavigate } from '#hooks/useNavigate';
+import { getSchedulesQuery } from '#hooks/useSchedules';
+import { useSheetValue } from '#hooks/useSheetValue';
+import { useSyncedPref } from '#hooks/useSyncedPref';
 import {
-  useTransactions,
   calculateRunningBalancesTopDown,
-} from '@desktop-client/hooks/useTransactions';
-import { useTransactionsSearch } from '@desktop-client/hooks/useTransactionsSearch';
-import { collapseModals, pushModal } from '@desktop-client/modals/modalsSlice';
-import * as queries from '@desktop-client/queries';
-import { useDispatch } from '@desktop-client/redux';
-import * as bindings from '@desktop-client/spreadsheet/bindings';
+  useTransactions,
+} from '#hooks/useTransactions';
+import { useTransactionsSearch } from '#hooks/useTransactionsSearch';
+import { collapseModals, pushModal } from '#modals/modalsSlice';
+import * as queries from '#queries';
+import { useDispatch } from '#redux';
+import * as bindings from '#spreadsheet/bindings';
 
 export function AccountTransactions({
   account,
@@ -57,16 +57,26 @@ function TransactionListWithPreviews({
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const baseTransactionsQuery = useCallback(
-    () =>
-      queries.transactions(account.id).options({ splits: 'all' }).select('*'),
-    [account.id],
-  );
-
   const [showRunningBalances] = useSyncedPref(`show-balances-${account.id}`);
+  const [hideReconciled] = useSyncedPref(`hide-reconciled-${account.id}`);
+
+  const baseTransactionsQuery = useCallback(() => {
+    let query = queries
+      .transactions(account.id)
+      .options({ splits: 'all' })
+      .select('*');
+    if (hideReconciled === 'true') {
+      query = query.filter({ reconciled: { $eq: false } });
+    }
+    return query;
+  }, [account.id, hideReconciled]);
   const [transactionsQuery, setTransactionsQuery] = useState<Query>(
     baseTransactionsQuery(),
   );
+
+  useEffect(() => {
+    setTransactionsQuery(baseTransactionsQuery());
+  }, [baseTransactionsQuery]);
 
   const { isSearching, search: onSearch } = useTransactionsSearch({
     updateQuery: setTransactionsQuery,
@@ -89,10 +99,9 @@ function TransactionListWithPreviews({
   const {
     transactions,
     runningBalances,
-    isLoading: isTransactionsLoading,
-    reload: reloadTransactions,
-    isLoadingMore,
-    loadMore: loadMoreTransactions,
+    isPending: isTransactionsLoading,
+    isFetchingNextPage: isLoadingMoreTransactions,
+    fetchNextPage: fetchMoreTransactions,
   } = useTransactions({
     query: transactionsQuery,
     options: {
@@ -111,11 +120,12 @@ function TransactionListWithPreviews({
     accountId: account?.id,
   });
 
+  const syncAndDownload = useSyncAndDownloadMutation();
   const onRefresh = useCallback(() => {
     if (account.id) {
-      dispatch(syncAndDownload({ accountId: account.id }));
+      syncAndDownload.mutate({ id: account.id });
     }
-  }, [account.id, dispatch]);
+  }, [account.id, syncAndDownload]);
 
   const allBalances = useMemo(
     () =>
@@ -132,25 +142,10 @@ function TransactionListWithPreviews({
     }
   }, [account.id, dispatch]);
 
-  useEffect(() => {
-    return listen('sync-event', event => {
-      if (event.type === 'applied') {
-        const tables = event.tables;
-        if (
-          tables.includes('transactions') ||
-          tables.includes('category_mapping') ||
-          tables.includes('payee_mapping')
-        ) {
-          reloadTransactions();
-        }
-      }
-    });
-  }, [dispatch, reloadTransactions]);
-
   const onOpenTransaction = useCallback(
     (transaction: TransactionEntity) => {
       if (!isPreviewId(transaction.id)) {
-        navigate(`/transactions/${transaction.id}`);
+        void navigate(`/transactions/${transaction.id}`);
       } else {
         dispatch(
           pushModal({
@@ -226,8 +221,8 @@ function TransactionListWithPreviews({
       balanceUncleared={balanceBindings.uncleared}
       runningBalances={allBalances}
       showRunningBalances={shouldCalculateRunningBalances}
-      isLoadingMore={isLoadingMore}
-      onLoadMore={loadMoreTransactions}
+      isLoadingMore={isLoadingMoreTransactions}
+      onLoadMore={fetchMoreTransactions}
       searchPlaceholder={t('Search {{accountName}}', {
         accountName: account.name,
       })}

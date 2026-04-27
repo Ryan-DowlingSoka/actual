@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { Button, ButtonWithLoading } from '@actual-app/components/button';
@@ -8,26 +8,22 @@ import { Label } from '@actual-app/components/label';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
+import {
+  isElectron,
+  isNonProductionEnvironment,
+} from '@actual-app/core/shared/environment';
 import { css } from '@emotion/css';
 
-import {
-  isNonProductionEnvironment,
-  isElectron,
-} from 'loot-core/shared/environment';
+import { createBudget } from '#budgetfiles/budgetfilesSlice';
+import { Link } from '#components/common/Link';
+import { useServerURL, useSetServerURL } from '#components/ServerContext';
+import { useGlobalPref } from '#hooks/useGlobalPref';
+import { useNavigate } from '#hooks/useNavigate';
+import { saveGlobalPrefs } from '#prefs/prefsSlice';
+import { useDispatch } from '#redux';
+import { loggedIn, signOut } from '#users/usersSlice';
 
 import { Title } from './subscribe/common';
-
-import { createBudget } from '@desktop-client/budgetfiles/budgetfilesSlice';
-import { Link } from '@desktop-client/components/common/Link';
-import {
-  useServerURL,
-  useSetServerURL,
-} from '@desktop-client/components/ServerContext';
-import { useGlobalPref } from '@desktop-client/hooks/useGlobalPref';
-import { useNavigate } from '@desktop-client/hooks/useNavigate';
-import { saveGlobalPrefs } from '@desktop-client/prefs/prefsSlice';
-import { useDispatch } from '@desktop-client/redux';
-import { loggedIn, signOut } from '@desktop-client/users/usersSlice';
 
 export function ElectronServerConfig({
   onDoNotUseServer,
@@ -88,9 +84,9 @@ export function ElectronServerConfig({
       await window.globalThis.Actual.stopSyncServer();
       await window.globalThis.Actual.startSyncServer();
       setStartingSyncServer(false);
-      initElectronSyncServerRunningStatus();
+      void initElectronSyncServerRunningStatus();
       await setServerUrl(`http://localhost:${electronServerPort}`);
-      navigate('/');
+      void navigate('/');
     } catch (error) {
       setStartingSyncServer(false);
       setConfigError(t('Failed to configure sync server'));
@@ -108,7 +104,7 @@ export function ElectronServerConfig({
   };
 
   useEffect(() => {
-    initElectronSyncServerRunningStatus();
+    void initElectronSyncServerRunningStatus();
   }, []);
 
   async function dontUseSyncServer() {
@@ -313,7 +309,7 @@ export function ConfigServer() {
     switch (error) {
       case 'network-failure':
         return t(
-          'Server is not running at this URL. Make sure you have HTTPS set up properly.',
+          'Connection failed. If you use a self-signed certificate or were recently offline, try refreshing the page. Otherwise ensure you have HTTPS set up properly.',
         );
       default:
         return t(
@@ -344,7 +340,7 @@ export function ConfigServer() {
     } else {
       setLoading(false);
       await dispatch(signOut());
-      navigate('/');
+      void navigate('/');
     }
   }
 
@@ -371,13 +367,13 @@ export function ConfigServer() {
   async function onSkip() {
     await setServerUrl(null);
     await dispatch(loggedIn());
-    navigate('/');
+    void navigate('/');
   }
 
   async function onCreateTestFile() {
     await setServerUrl(null);
     await dispatch(createBudget({ testMode: true }));
-    navigate('/');
+    void navigate('/');
   }
 
   const [syncServerConfig] = useGlobalPref('syncServerConfig');
@@ -542,7 +538,7 @@ export function ConfigServer() {
                     style={{ marginLeft: 15 }}
                     onPress={async () => {
                       await onCreateTestFile();
-                      navigate('/');
+                      void navigate('/');
                     }}
                   >
                     <Trans>Create test file</Trans>
