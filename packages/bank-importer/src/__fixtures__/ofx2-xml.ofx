@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <TRNUID>1</TRNUID>
+      <STMTRS>
+        <CURDEF>CAD</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>123</BANKID>
+          <ACCTID>9999</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20261001</DTPOSTED>
+            <TRNAMT>-12.5</TRNAMT>
+            <FITID>A1</FITID>
+            <PAYEE><NAME>Café Olé</NAME></PAYEE>
+            <MEMO>Latte</MEMO>
+          </STMTTRN>
+        </BANKTRANLIST>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>

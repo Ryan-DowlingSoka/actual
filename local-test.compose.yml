@@ -1,0 +1,45 @@
+# Local test stack: the sync server running on a COPY of the budget data,
+# plus the bank importer pointed at it. Nothing here touches the NAS.
+#
+#   docker compose -f local-test.compose.yml --env-file local-test/.env up --build
+#
+# local-test/ is git-ignored. Expected layout:
+#   local-test/.env                ACTUAL_PASSWORD=<server password>
+#   local-test/server-data/        extracted backup of /volume1/docker/actual
+#   local-test/import/config.json  importer config (see packages/bank-importer/README.md)
+#   local-test/import/inbox/       drop .ofx/.qfx files here
+services:
+  actual:
+    image: actual-server:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '5016:5006'
+    volumes:
+      - ./local-test/server-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:5006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      retries: 10
+
+  bank-importer:
+    image: actual-bank-importer:local
+    build:
+      context: .
+      dockerfile: packages/bank-importer/Dockerfile
+    depends_on:
+      actual:
+        condition: service_healthy
+    environment:
+      ACTUAL_SERVER_URL: http://actual:5006
+      ACTUAL_PASSWORD: ${ACTUAL_PASSWORD:?set ACTUAL_PASSWORD in local-test/.env}
+    volumes:
+      - ./local-test/import:/import
+    command: ['run', '--dry-run', '--watch', '30']

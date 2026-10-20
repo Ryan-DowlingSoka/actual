@@ -1,0 +1,26 @@
+{
+  "name": "@actual-app/bank-importer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Imports bank statement files (OFX/QFX) from an inbox folder into an Actual budget",
+  "license": "MIT",
+  "bin": "./dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest --run",
+    "typecheck": "tsgo -b"
+  },
+  "dependencies": {
+    "@actual-app/api": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "@typescript/native-preview": "beta",
+    "vite": "^8.0.5",
+    "vitest": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

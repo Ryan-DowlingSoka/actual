@@ -20,6 +20,7 @@ packages/api/app/stats.json
 packages/api/dist
 packages/api/@types
 packages/crdt/dist
+packages/bank-importer/dist
 packages/desktop-client/build-stats
 packages/desktop-client/dev-dist
 packages/desktop-client/public/kcab
@@ -92,3 +93,9 @@ storybook-static
 .actualrc.yaml
 .actualrc.yml
 actual.config.js
+
+# Local docker test environment (copies of real budget data)
+/local-test/
+
+# NAS-only config (contains account numbers)
+/nas-config/

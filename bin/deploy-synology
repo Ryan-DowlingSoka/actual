@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+#####################################################
+# Build the Actual sync server and bank importer images
+# locally and deploy them to the Synology NAS over SSH.
+#
+#   bin/deploy-synology <ssh-user> [all|server|importer]
+#   bin/deploy-synology <ssh-user> [all|server|importer] --redeploy <tag>
+#
+# all (default) deploys the server, then the importer.
+# --redeploy reuses an already-uploaded build (use it to roll back).
+#
+# The NAS side (bin/deploy-synology-remote.sh) backs up the
+# data directory before replacing the server, rolls the server
+# back if its health check fails, and on the importer's first
+# install asks for the server password and installs its config
+# from nas-config/importer-config.json.
+#
+# Connection settings live in nas-config/deploy.env (git-ignored):
+#   SYNO_HOST=<NAS address>
+#   SYNO_PORT=<SSH port, default 22>
+#   ACTUAL_HOST_PORT=<host port the Actual server is published on>
+# Run from Git Bash (or bin/deploy-synology.ps1 from PowerShell).
+#####################################################
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+DEPLOY_CONFIG=nas-config/deploy.env
+if [ ! -f "$DEPLOY_CONFIG" ]; then
+  echo "Missing $DEPLOY_CONFIG; create it with SYNO_HOST, SYNO_PORT and ACTUAL_HOST_PORT." >&2
+  exit 1
+fi
+# Tolerate Windows line endings from editing the file in Notepad.
+set -a
+source <(tr -d '' < "$DEPLOY_CONFIG")
+set +a
+: "${SYNO_HOST:?SYNO_HOST is not set in $DEPLOY_CONFIG}"
+: "${ACTUAL_HOST_PORT:?ACTUAL_HOST_PORT is not set in $DEPLOY_CONFIG}"
+SYNO_PORT="${SYNO_PORT:-22}"
+
+STAGING_DIR=/volume1/docker/images
+IMPORTER_CONFIG=nas-config/importer-config.json
+
+usage() {
+  echo "usage: $0 <ssh-user> [all|server|importer] [--redeploy <tag>]" >&2
+  exit 1
+}
+
+[ $# -ge 1 ] || usage
+SSH_USER="$1"
+shift
+
+COMPONENTS=all
+if [ $# -gt 0 ] && [ "${1#--}" = "$1" ]; then
+  COMPONENTS="$1"
+  shift
+fi
+case "$COMPONENTS" in all | server | importer) ;; *) usage ;; esac
+
+TAG=""
+if [ $# -gt 0 ]; then
+  [ "$1" = "--redeploy" ] && [ $# -eq 2 ] || usage
+  TAG="$2"
+fi
+
+REMOTE="$SSH_USER@$SYNO_HOST"
+ssh_cmd() { ssh -p "$SYNO_PORT" "$@"; }
+
+if [ -z "$TAG" ]; then
+  TAG="$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)"
+  if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    TAG="$TAG-dirty"
+    echo "WARNING: working tree has uncommitted changes; tagging as $TAG"
+  fi
+
+  IMAGES=()
+  if [ "$COMPONENTS" != importer ]; then
+    echo "==> Building actual-server:$TAG"
+    docker build -t "actual-server:$TAG" -t actual-server:latest .
+    IMAGES+=("actual-server:$TAG")
+  fi
+  if [ "$COMPONENTS" != server ]; then
+    echo "==> Building actual-bank-importer:$TAG"
+    docker build -f packages/bank-importer/Dockerfile \
+      -t "actual-bank-importer:$TAG" -t actual-bank-importer:latest .
+    IMAGES+=("actual-bank-importer:$TAG")
+  fi
+
+  echo "==> Uploading ${IMAGES[*]} to $REMOTE:$STAGING_DIR"
+  docker save "${IMAGES[@]}" | gzip -1 |
+    ssh_cmd "$REMOTE" "cat > '$STAGING_DIR/actual-$TAG.tar.gz'"
+fi
+
+echo "==> Uploading NAS-side deploy script"
+tr -d '\r' < bin/deploy-synology-remote.sh |
+  ssh_cmd "$REMOTE" "cat > '$STAGING_DIR/deploy-synology-remote.sh'"
+
+if [ "$COMPONENTS" != server ] && [ -f "$IMPORTER_CONFIG" ]; then
+  echo "==> Uploading importer config (installed only if the NAS has none yet)"
+  ssh_cmd "$REMOTE" "cat > '$STAGING_DIR/importer-config.json'" < "$IMPORTER_CONFIG"
+fi
+
+echo "==> Deploying $TAG ($COMPONENTS) on the NAS (sudo will ask for your NAS password)"
+ssh_cmd -t "$REMOTE" "sudo sh '$STAGING_DIR/deploy-synology-remote.sh' '$TAG' '$COMPONENTS' '$ACTUAL_HOST_PORT'"
+
+echo "==> Deployed $TAG ($COMPONENTS)"

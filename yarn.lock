@@ -36,6 +36,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@actual-app/bank-importer@workspace:packages/bank-importer":
+  version: 0.0.0-use.local
+  resolution: "@actual-app/bank-importer@workspace:packages/bank-importer"
+  dependencies:
+    "@actual-app/api": "workspace:*"
+    "@types/node": "npm:^22.19.17"
+    "@typescript/native-preview": "npm:beta"
+    vite: "npm:^8.0.5"
+    vitest: "npm:^4.1.2"
+  bin:
+    bank-importer: ./dist/index.js
+  languageName: unknown
+  linkType: soft
+
 "@actual-app/ci-actions@workspace:packages/ci-actions":
   version: 0.0.0-use.local
   resolution: "@actual-app/ci-actions@workspace:packages/ci-actions"

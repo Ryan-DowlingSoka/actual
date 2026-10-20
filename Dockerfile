@@ -8,15 +8,7 @@ WORKDIR /app
 # Copy only the files needed for installing dependencies
 COPY .yarn ./.yarn
 COPY yarn.lock package.json .yarnrc.yml tsconfig.json ./
-COPY packages/api/package.json packages/api/package.json
-COPY packages/component-library/package.json packages/component-library/package.json
-COPY packages/crdt/package.json packages/crdt/package.json
-COPY packages/desktop-client/package.json packages/desktop-client/package.json
-COPY packages/desktop-electron/package.json packages/desktop-electron/package.json
-COPY packages/eslint-plugin-actual/package.json packages/eslint-plugin-actual/package.json
-COPY packages/loot-core/package.json packages/loot-core/package.json
-COPY packages/sync-server/package.json packages/sync-server/package.json
-COPY packages/plugins-service/package.json packages/plugins-service/package.json
+COPY packages/ ./packages/
 
 COPY ./bin/package-browser ./bin/package-browser
 
@@ -37,11 +29,12 @@ RUN yarn build:server
 RUN yarn workspaces focus @actual-app/sync-server --production
 
 # Remove symbolic links for @actual-app/web and @actual-app/sync-server
-RUN rm -rf ./node_modules/@actual-app/web ./node_modules/@actual-app/sync-server
+RUN rm -rf ./node_modules/@actual-app/web ./node_modules/@actual-app/sync-server ./node_modules/@actual-app/crdt
 
 # Copy in the @actual-app/web artifacts manually, so we don't need the entire packages folder
 COPY ./packages/desktop-client/package.json ./node_modules/@actual-app/web/package.json
 RUN cp -r ./packages/desktop-client/build ./node_modules/@actual-app/web/build
+RUN cp -r ./packages/crdt ./node_modules/@actual-app/crdt
 
 FROM node:22-bookworm-slim AS prod
 
